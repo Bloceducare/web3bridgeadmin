@@ -12,16 +12,13 @@ const AttendeeList: React.FC = () => {
       <tbody className='border-spacing-y-[10px]'>
         {registrations.map((registration) => (
           <tr className='border-[1px] p-10' key={registration.id}>
-            <td>{registration.id}</td>
-            <td>{registration.name}</td>
+            <td><input type="checkbox" />{registration.name}</td>
             <td>{registration.email}</td>
-            <td>{registration.phone}</td>
-            <td>{registration.location}</td>
             <td>{registration.gender}</td>
-            <td>{registration.telegramusername}</td>
             <td>{registration.country}</td>
-            <td>{registration.xhandle}</td>
             <td>{registration.role}</td>
+            <td><input type="checkbox" /><input type="checkbox" /><input type="checkbox" /></td>
+            <td>Edit</td>
           </tr>
         ))}
       </tbody>
@@ -29,7 +26,7 @@ const AttendeeList: React.FC = () => {
   );
 };
 
-const Attendees: React.FC = () => {
+const Participants: React.FC = () => {
   return (
     <div className='w-full h-full overflow-auto p-4'>
       <div className='flex flex-col w-full'>
@@ -38,16 +35,13 @@ const Attendees: React.FC = () => {
           <table className='table-auto overflow-auto w-full h-full'>
             <thead className='p-2 bg-slate-300 '>
               <tr>
-                <th>No.</th>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Phone</th>
-                <th>Country</th>
-                <th>Location</th>
                 <th>Gender</th>
-                <th>Telegramusername</th>
-                <th>Xhandle</th>
+                <th>Country</th>
                 <th>Role</th>
+                <th>Attendance</th>
+                <th>Action</th>
               </tr>
             </thead>
             <DataFetcher>
@@ -60,4 +54,4 @@ const Attendees: React.FC = () => {
   );
 };
 
-export default Attendees;
+export default Participants;
