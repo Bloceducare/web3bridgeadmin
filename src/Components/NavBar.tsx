@@ -17,8 +17,8 @@ const NavBar = () => {
           <h4 className="text-[21px]">Web3lagos Event</h4>
         </Link>
         <div className="flex flex-col w-full gap-2">
-          <NavItems href="/Dashboard" src={home} name="Dashboard" />
-          <NavItems href="/Participants" src={person} name="Participants" />
+          <NavItems href="/Pages/Dashboard" src={home} name="Dashboard" />
+          <NavItems href="/Pages/Participants" src={person} name="Participants" />
           <NavItems href="#" src={setting} name="Settings" />
         </div>
       </div>
