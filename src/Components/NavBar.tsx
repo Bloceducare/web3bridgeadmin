@@ -28,7 +28,7 @@ const NavBar = () => {
         <div className="flex w-full gap-2">
           <div className="relative">
           <Image src={avatar} alt="avatar" className="w-[38px]" />
-          <div className="absolute h-2 w-2 bottom-1 right-0 bg-green-500 rounded-full"></div>
+          <div className="absolute h-[10px] w-[10px] border-[1px] border-white bottom-1 right-0 bg-green-700 rounded-full"></div>
           </div>
           <div>
             <h2 className="text-[14px]">EnergyI</h2>
