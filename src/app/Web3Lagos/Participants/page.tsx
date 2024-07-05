@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { DataFetcher, useData } from '../../../Components/DataFetcher';
-import { table } from 'console';
+import { PageNav } from '../../../Components';
 
 const AttendeeList: React.FC = () => {
   const { registrations } = useData();
@@ -30,7 +30,7 @@ const Participants: React.FC = () => {
   return (
     <div className='w-full h-full overflow-auto p-4'>
       <div className='flex flex-col w-full'>
-        <h1>Registrations</h1>
+      <PageNav pageTitle="Participants" />
         <div className='bg-red-200 flex overflow-y-auto w-full rounded-lg p-4'>
           <table className='table-auto overflow-auto w-full h-full'>
             <thead className='p-2 bg-slate-300 '>

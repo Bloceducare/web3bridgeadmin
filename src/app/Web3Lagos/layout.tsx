@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <div className="w-full h-full flex flex-col items-center overflow-hidden">
-      <PageNav pageTitle="Web3Lagos Conference" />
+      
       {children}
     </div>
   );
