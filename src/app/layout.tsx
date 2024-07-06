@@ -17,9 +17,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`flex h-screen w-screen ${inter.className}`}>
+      <body className={`flex h-[1100px] ${inter.className}`}>
+        <div className="w-1/6">
         <NavBar />
-        <div className="flex h-full w-4/5 p-2 items-center justify-center">
+        </div>
+        <div className="flex h-full w-5/6 p-2 items-center justify-center">
           <div className="flex h-full w-full overflow-hidden   bg-white rounded-lg flex-col items-center text-black">
               {children}
             {/* <PageNav pageTitle=""/>

@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <div className="w-full h-full flex flex-col items-center overflow-hidden">
-      <div className="w-full p-4 border-b-[1px] border-[#F0F2F5] flex justify-end items-center gap-4 pr-10">
+      <div className="w-full py-4 border-b-[1px] border-[#F0F2F5] flex justify-end items-center gap-x-4 pr-10">
       <Image src={avatar} alt="avatar" className="w-[38px]" />
       <Image src={downArror} alt="avatar" className="w-[18px]" />
       </div>
