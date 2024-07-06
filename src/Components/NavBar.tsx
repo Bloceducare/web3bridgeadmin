@@ -12,16 +12,16 @@ import logout from "../../public/Web3LagosSvg/exit.svg"
 const NavBar = () => {
 
   return (
-    <div className='h-full w-1/5 bg-[#181A1C] text-white flex flex-col justify-between pt-4 p-2'>
+    <div className='h-full w-full bg-[#181A1C] text-white flex flex-col justify-between '>
       <div className="flex flex-col w-full space-y-5">
-        <Link href="/" className="flex items-center gap-3 p-4">
+        <Link href="/" className="flex items-center gap-3 pt-7 px-3">
           <Image src={Logo} alt="Web3Bridge Logo" />
-          <h4 className="text-[21px]">Web3lagos Event</h4>
+          <h4 className="text-[18px]">Web3lagos Event</h4>
         </Link>
         <div className="flex flex-col w-full gap-2">
-          <NavItems href="/Web3Lagos/Dashboard" src={home} name="Dashboard" />
-          <NavItems href="/Web3Lagos/Participants" src={person} name="Participants" />
-          <NavItems href="#" src={setting} name="Settings" />
+          <NavItems href="/Web3Lagos/Dashboard" src={home} name="Overview" linkStyle="hover:bg-[#242529]" textStyle=" text-[#d8d8d8] hover:text-white" />
+          <NavItems href="/Web3Lagos/Participants" src={person} name="Participants" linkStyle="hover:bg-[#242529]" textStyle=" text-[#d8d8d8] hover:text-white" />
+          <NavItems href="#" src={setting} name="Settings" linkStyle="hover:bg-[#242529]" textStyle=" text-[#d8d8d8] hover:text-white" />
         </div>
       </div>
       <div className="border-t-[1px] h-[80px] w-full flex justify-between items-center border-[#1D2739] p-3 pb-0">
