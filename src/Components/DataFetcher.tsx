@@ -13,14 +13,11 @@ interface Registration {
   telegramusername: string;
   xhandle: string;
   role: string;
-  // Add other fields based on your data structure
 }
-
 
 interface Speaker {
   id: number;
   name: string;
-  // Add other fields based on your data structure
 }
 
 interface DataContextProps {
