@@ -20,10 +20,15 @@ export default function RootLayout({
 }>) {
   return (
     <div className="w-full h-full flex flex-col items-center overflow-hidden">
-      <div className="w-full py-4 border-b-[1px] border-[#F0F2F5] flex justify-end items-center gap-x-4 pr-10">
+
+      <div className="w-full px-5 py-4 border-b-[1px] border-[#F0F2F5] flex justify-between items-center gap-x-4 pr-10">
+        <p className="text-3xl font-light"> Welcome <b> Superman</b></p>
+      <div className="flex gap-x-4">
       <Image src={avatar} alt="avatar" className="w-[38px]" />
       <Image src={downArror} alt="avatar" className="w-[18px]" />
       </div>
+      </div>
+
       {children}
     </div>
   );

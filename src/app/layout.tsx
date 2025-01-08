@@ -22,7 +22,7 @@ export default function RootLayout({
         <NavBar />
         </div>
         <div className="flex h-full w-5/6 p-2 items-center justify-center">
-          <div className="flex h-full w-full overflow-hidden   bg-white rounded-lg flex-col items-center text-black">
+          <div className="flex h-full w-full overflow-hidden   bg-white rounded-lg flex-col text-black">
               {children}
             {/* <PageNav pageTitle=""/>
             <div className="flex w-full h-full justify-center items-cente rounded-lg p-2">

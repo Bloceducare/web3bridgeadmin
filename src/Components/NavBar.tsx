@@ -2,7 +2,7 @@ import Link from "next/link"
 import { NavItems } from "../Components"
 import Image from "next/image"
 
-import Logo from "../../public/Web3LagosSvg/Group 562.svg"
+import Logo from "../../public/web3logoLight.svg"
 import home from "../../public/Web3LagosSvg/home-icon.svg"
 import person from "../../public/Web3LagosSvg/icon-1.svg"
 import setting from "../../public/Web3LagosSvg/icon-6.svg"
@@ -16,9 +16,8 @@ const NavBar = () => {
       <div className="flex flex-col w-full space-y-5">
         <Link href="/" className="flex items-center gap-3 pt-7 px-3">
           <Image src={Logo} alt="Web3Bridge Logo" />
-          <h4 className="text-[18px]">Web3lagos Event</h4>
         </Link>
-        <div className="flex flex-col w-full gap-2">
+        <div className="flex flex-col w-full mt-10">
           <NavItems href="/Web3Lagos/Dashboard" src={home} name="Overview" linkStyle="hover:bg-[#242529]" textStyle=" text-[#d8d8d8] hover:text-white" />
           <NavItems href="/Web3Lagos/Participants" src={person} name="Participants" linkStyle="hover:bg-[#242529]" textStyle=" text-[#d8d8d8] hover:text-white" />
           <NavItems href="#" src={setting} name="Settings" linkStyle="hover:bg-[#242529]" textStyle=" text-[#d8d8d8] hover:text-white" />
