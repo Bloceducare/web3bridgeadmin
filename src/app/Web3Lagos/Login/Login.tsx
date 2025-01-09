@@ -155,7 +155,7 @@ const Login = () => {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? <ScaleLoader /> : "LogIn"}
+                {loading ? <ScaleLoader color="#ffff" /> : "LogIn"}
               </button>
               <div className="flex justify-center">
               {message ? <p>{message}</p> : "" }
