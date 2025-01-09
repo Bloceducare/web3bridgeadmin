@@ -80,6 +80,7 @@ const Login = () => {
             localStorage.setItem("token", data.access_token)
             localStorage.setItem("user", JSON.stringify(data.user))
             setFormData(initialFormState);
+              window.location.href = "/Web3Lagos/Dashboard"
         } else {
             setErrors(data);
             setMessage("Please  check your details  and try again.");
@@ -121,6 +122,7 @@ const Login = () => {
             value={formData.username}
             onChange={handleChange}
             name="username"
+            placeholder="Enter your username"
             className="p-2 border outline-none"
           />
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DataFetcher, useData } from '../../../Components/DataFetcher';
 import {AttendeeList} from '../../../Components'; // Adjust import as needed
 import Image from 'next/image';
@@ -28,6 +28,34 @@ const Participants: React.FC = () => {
       setCurrentPage(currentPage + 1);
     }
   };
+
+    const [loading, setLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+  
+   
+    const token = localStorage.getItem("token")
+
+  useEffect(() => {
+    const fetchParticipants = async () => {
+      if (!token) {
+        setError("You are not logged in");
+        setLoading(false);
+         window.location.href = "/"
+        return;
+      }
+    }
+
+    fetchParticipants()
+  }, [token])
+  
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className='w-full overflow-hidden h-full p-4'>

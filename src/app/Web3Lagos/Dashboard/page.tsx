@@ -29,13 +29,14 @@ export default function Dashboard() {
   const [expandedDescriptionId, setExpandedDescriptionId] = useState<number | null>(null); // Track which program's description is expanded
 
   // Ideally, store the token securely (in localStorage or context)
-  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM5MDE0NzQ2LCJpYXQiOjE3MzY0MjI3NDYsImp0aSI6ImZhMGY1ZjRkZjU4ODQ5ODg4MTBmZjFmNDNiOGM0YWQ3IiwidXNlcl9pZCI6MX0.7LpqI4jMEV9Ef-QjDDMIYF4d02NsaxbN52SZHOxL-qU";
+  const token = localStorage.getItem("token")
 
   useEffect(() => {
     const fetchPrograms = async () => {
       if (!token) {
-        setError("No authorization token found.");
+        setError("You are not logged in");
         setLoading(false);
+         window.location.href = "/"
         return;
       }
 
