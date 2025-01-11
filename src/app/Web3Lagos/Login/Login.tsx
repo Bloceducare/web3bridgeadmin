@@ -76,14 +76,14 @@ const Login = () => {
 
         const data = response.data
         console.log(data)
-        if(response.data) {
-            localStorage.setItem("token", data.access_token)
-            localStorage.setItem("user", JSON.stringify(data.user))
+        if (response.data) {
+          localStorage.setItem("token", data.access_token);
+          localStorage.setItem("user", JSON.stringify(data.user));
             setFormData(initialFormState);
               window.location.href = "/Web3Lagos/Dashboard"
         } else {
             setErrors(data);
-            setMessage("Please  check your details  and try again.");
+            setMessage("Please check your details  and try again.");
             setLoading(false)
         }
         

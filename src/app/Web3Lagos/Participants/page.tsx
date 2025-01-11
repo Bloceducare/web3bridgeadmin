@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, } from 'react';
 import { DataFetcher, useData } from '../../../Components/DataFetcher';
 import {AttendeeList} from '../../../Components'; // Adjust import as needed
 import Image from 'next/image';
@@ -32,10 +32,10 @@ const Participants: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
   
-   
-    const token = localStorage.getItem("token")
 
   useEffect(() => {
+    const token = localStorage.getItem("token")
+
     const fetchParticipants = async () => {
       if (!token) {
         setError("You are not logged in");
@@ -46,7 +46,7 @@ const Participants: React.FC = () => {
     }
 
     fetchParticipants()
-  }, [token])
+  }, [])
   
 
   if (error) {

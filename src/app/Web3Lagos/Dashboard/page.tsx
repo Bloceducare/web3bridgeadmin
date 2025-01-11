@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { ScaleLoader } from "react-spinners";
 
+
 interface Image {
   id: number;
   picture: string;
@@ -22,17 +23,41 @@ interface ApiResponse {
   data: Program[];
 }
 
+type FormData = {
+  name: string;
+  description: string;
+  venue: ("online" | "onsite")[]; 
+  extra_info: string;
+  images: Image[];
+};
+
+type FormErrors = {
+  [key in keyof FormData]?: string[];
+};
+
+const initialFormState: FormData = {
+  name: "",
+  description: "",
+  venue: [], 
+  extra_info: "",
+  images: [] 
+};
+
+const initialFormErrors: FormErrors = {};
+
 export default function Dashboard() {
+  const [formData, setFormData] = useState<FormData>(initialFormState)
+      const [errors, setErrors] = useState<FormErrors>(initialFormErrors);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedDescriptionId, setExpandedDescriptionId] = useState<number | null>(null); // Track which program's description is expanded
-
-  // Ideally, store the token securely (in localStorage or context)
-  const token = localStorage.getItem("token")
-
+  const [expandedDescriptionId, setExpandedDescriptionId] = useState<number | null>(null); 
+  const [isNewCourseOpen, setIsNewCourseOpen] = useState<boolean>(false); 
+  
   useEffect(() => {
+    const token = localStorage.getItem("token")
     const fetchPrograms = async () => {
+      
       if (!token) {
         setError("You are not logged in");
         setLoading(false);
@@ -68,7 +93,7 @@ export default function Dashboard() {
     };
 
     fetchPrograms();
-  }, [token]);
+  }, []);
 
   const toggleDescription = (programId: number) => {
     setExpandedDescriptionId((prev) => (prev === programId ? null : programId)); 
@@ -90,10 +115,99 @@ export default function Dashboard() {
     );
   }
 
+
+  const handleChange = ( e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+    setErrors({
+      ...errors,
+      [name]: undefined,
+    });
+  }
+
+  const handleNewCourse = () => {
+    console.log("clicked")
+    setIsNewCourseOpen((prev) => !prev); 
+  }
+
   return (
     <div className="bg-green-200 w-full h-full p-10">
+
+
       <div className="space-y-10">
+        <div className="flex justify-between">
         <h1 className="text-center text-3xl font-bold">All Courses</h1>
+        <button className="flex justify-end items-center bg-[#2b292c] p-3 rounded-md text-white" onClick={handleNewCourse}>New Course </button>
+        </div>
+
+          {/* New Course Form */}
+          {isNewCourseOpen && (
+          <div className="bg-white p-6 rounded-md shadow-md mt-4 space-x-5">
+            <h2 className="text-2xl font-semibold">Add New Course</h2>
+            <form onSubmit={handleNewCourse} className="space-y-6 mt-3">
+              <div className="space-y-3">
+                <label>Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="border rounded p-2 w-full"
+                />
+              </div>
+              <div className="space-y-3">
+                <label>Description</label>
+                <input type="text" name="description" id="" value={formData.description} onChange={handleChange} className="border w-full h-[20vh]" />
+              </div>
+
+              <div className="space-y-3">
+                <label>Extra info</label>
+                <input type="text" name="extra_info" id="" value={formData.extra_info} onChange={handleChange} className="border w-full h-[10vh]" />
+              </div>
+
+              
+              {/* <div className="space-y-3">
+                <label>Select Image</label>
+                <input type="file" name="image" id="" value={formData.images} onChange={handleChange} className="border w-full h-[10vh]" />
+              </div> */}
+
+              <button
+                type="submit"
+                className="mt-4 p-3 bg-blue-500 text-white rounded"
+              >
+                Add Course
+              </button>
+            </form>
+            <button
+              className="mt-2 text-red-500"
+              onClick={() => setIsNewCourseOpen(false)}
+
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{!isNewCourseOpen && (
+
+  <div>
         {programs.length === 0 ? (
           <p className="text-center">No programs found.</p>
         ) : (
@@ -152,8 +266,12 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+        </div>
+    )}
+
       </div>
     </div>
+    
   );
 }
 

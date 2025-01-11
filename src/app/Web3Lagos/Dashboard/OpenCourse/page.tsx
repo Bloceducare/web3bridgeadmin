@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { ScaleLoader } from "react-spinners";
 
+
 interface Image {
   id: number;
   picture: string;
@@ -26,12 +27,12 @@ export default function OpenCourse() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedDescriptionId, setExpandedDescriptionId] = useState<number | null>(null); // Track which program's description is expanded
+  const [expandedDescriptionId, setExpandedDescriptionId] = useState<number | null>(null);
 
-  // Ideally, store the token securely (in localStorage or context)
-  const token = localStorage.getItem("token")
 
   useEffect(() => {
+    const token = localStorage.getItem("token"); 
+
     const fetchPrograms = async () => {
       if (!token) {
         setError("No authorization token found.");
@@ -67,7 +68,7 @@ export default function OpenCourse() {
     };
 
     fetchPrograms();
-  }, [token]);
+  }, []);
 
   const toggleDescription = (programId: number) => {
     setExpandedDescriptionId((prev) => (prev === programId ? null : programId)); 
