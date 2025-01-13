@@ -72,15 +72,26 @@ const Login = () => {
 
     try {
     console.log(formDataToSend)
-        const response = await axios.post("https://web3bridgeauth-y4kb.onrender.com/accounts/signin", formDataToSend)
+    const response = await fetch(
+      "https://web3bridgeauth-y4kb.onrender.com/accounts/signin/",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formDataToSend), 
+      }
+    );
 
-        const data = response.data
+    const data = await response.json(); // Parse the response
+
+    console.log(data);
         console.log(data)
-        if (response.data) {
+        if (response.ok) {
           localStorage.setItem("token", data.access_token);
           localStorage.setItem("user", JSON.stringify(data.user));
-            setFormData(initialFormState);
-              window.location.href = "/Web3Lagos/Dashboard"
+          setFormData(initialFormState);
+          window.location.href = "/Web3Lagos/Dashboard"; 
         } else {
             setErrors(data);
             setMessage("Please check your details  and try again.");

@@ -13,6 +13,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 
 export default function RootLayout({
+
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -23,8 +24,19 @@ export default function RootLayout({
     setDropdownOpen((prev) => !prev);
   };
 
+  const [user, setUser] = useState<null | { name: string; email: string; role: string; username: string }>(null);
+
+
   // Close the dropdown if the user clicks outside of it
   useEffect(() => {
+    const userString = localStorage.getItem("user");
+    if (userString) {
+      const storedUser = JSON.parse(userString); 
+      setUser(storedUser); 
+    }
+
+
+
     const handleClickOutside = (event: MouseEvent) => {
       const dropdownElement = document.getElementById("dropdownMenu");
       const downArrowElement = document.getElementById("downArrow");
@@ -45,12 +57,13 @@ export default function RootLayout({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+  
 
   return (
     <div className="w-full h-full flex flex-col items-center overflow-hidden">
       <div className="w-full px-5 py-4 border-b-[1px] border-[#F0F2F5] flex justify-between items-center gap-x-4 pr-10">
         <p className="text-3xl font-light">
-          Welcome <b>Superman</b>
+          Welcome <b>{user?.name}</b>
         </p>
         <div className="flex gap-x-4 items-center relative">
           {/* Avatar Image */}

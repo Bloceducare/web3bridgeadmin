@@ -53,26 +53,37 @@ export default function Dashboard() {
   const [formData, setFormData] = useState<FormData>(initialFormState)
       const [errors, setErrors] = useState<FormErrors>(initialFormErrors);
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<{ delete: boolean; other: boolean }>({
+    delete: false,
+    other: false,
+  });
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [expandedDescriptionId, setExpandedDescriptionId] = useState<number | null>(null); 
   const [isNewCourseOpen, setIsNewCourseOpen] = useState<boolean>(false); 
-
+  const [Delmessage, setDelMessage] = useState<Record<string, string>>({});
+  const [token, setToken] = useState("")
 
   
   useEffect(() => {
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("token") || "";
+    setToken(token)
     const fetchPrograms = async () => {
+      setLoading((prev) => ({ ...prev, other: true }));
       
       if (!token) {
+        setLoading((prev) => ({ ...prev, other: false }));
         setError("You are not logged in");
-        setLoading(false);
+        const timer = setTimeout(() => {
          window.location.href = "/"
+        }, 2000)
+
         return;
       }
 
+
       try {
+
         const response = await fetch(
           `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/all/`,
           {
@@ -95,7 +106,7 @@ export default function Dashboard() {
         setError("Error fetching data");
         console.error("Error fetching data:", error);
       } finally {
-        setLoading(false);
+        setLoading((prev) => ({ ...prev, other: false }));
       }
     };
 
@@ -106,7 +117,7 @@ export default function Dashboard() {
     setExpandedDescriptionId((prev) => (prev === programId ? null : programId)); 
   };
 
-  if (loading) {
+  if (loading.other) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div> <ScaleLoader /> </div>
@@ -191,33 +202,80 @@ export default function Dashboard() {
   
 
   const handleNewCourse = async (e: React.FormEvent) => {
-    console.log("clicked")
+    console.log("clicked");
     e.preventDefault();
     setMessage("");
-    setErrors(initialFormErrors); 
-
+    setErrors(initialFormErrors);
+  
     const formDataToSend = {
       ...formData,
     };
-
-    console.log(formDataToSend)
+  
+    console.log(formDataToSend);
+  
     try {
-      const response = await axios.post("https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/", formDataToSend)
-      const data = response.data
-      if (data) {
-     setMessage("Course Created succesfully")
-    console.log("course created")
-    const timer = setTimeout(() => {
-      openandCloseCourse();
-    }, 3000);
-    setFormData(initialFormState);
+      const response = await fetch(
+        "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`, 
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formDataToSend), 
+        }
+      );
+  
+      const data = await response.json();
+  
+      if (response.ok) {
+        setMessage("Course Created successfully");
+        console.log("course created");
+        const timer = setTimeout(() => {
+          openandCloseCourse();
+        }, 3000);
+        setFormData(initialFormState);
       } else {
-        setMessage("Unable to create Course now. We are working on it")
+        setMessage(
+          `Unable to create Course: ${data.message || "Please try again later"}`
+        );
       }
     } catch (error) {
-      console.log(error)
-      setMessage("Network error. Please try again later")
+      console.log("Network error:", error);
+      setMessage("Network error. Please try again later");
     }
+  };
+  
+  const handleDelete = async (id: number) => {
+    try {
+      setLoading((prev) => ({ ...prev, delete: true }));
+
+      const response = await axios.delete(
+        `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}`
+      );
+      console.log("Course deleted:", response.data);
+      
+      setDelMessage((prev) => ({
+        ...prev,
+        [id]: "Course deleted successfully!", 
+      }));
+      const timer = setTimeout(() => {
+      window.location.href="/Web3Lagos/Dashboard"
+      }, 2000)
+      return () => clearTimeout(timer);
+    } catch (error) {
+      console.error("Error deleting the course:", error);
+      setMessage("Error deleting the Course")
+    } finally {
+      setLoading((prev) => ({ ...prev, delete: false }));
+    }
+  };
+  
+
+  const handleUpdate = ( id: number ) => {
+
+    console.log( "This is the Updated clicked id", id)
+
   }
 
   
@@ -306,18 +364,6 @@ export default function Dashboard() {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 {!isNewCourseOpen && (
 
   <div>
@@ -375,7 +421,25 @@ export default function Dashboard() {
                     />
                   ))}
                 </div>
+
+                <div className="flex justify-end gap-5 items-end">
+                <button className="bg-green-700 px-3 py-1 rounded-md text-white" onClick={ () => handleUpdate(program.id)}>Update</button>
+                  <button className="bg-red-800 px-3 py-1 rounded-md text-white" onClick={ () => handleDelete(program.id)}>{loading.delete ? "Deleting...." : "Delete"}</button>
+                </div>
+
+                {Delmessage[program.id] && (
+          <div>
+            <p className="text-center ">{Delmessage[program.id]}</p>
+          </div>
+        )}
+
+
+
+
+
               </div>
+              
+
             ))}
           </div>
         )}
