@@ -1,5 +1,8 @@
+"use client"
 export { default as NavBar } from "./NavBar"
 export { default as PageNav } from "./PageNav"
 export { default as NavItems } from "./NavItems"
 export { default as AttendeeList } from "./AttendeeList"
+export { default as login } from "../app/Web3Lagos/Login/Login" 
+export { default as admin } from "./../app/admin"
 // export { default as DataFetcher } from "./DataFetcher"
