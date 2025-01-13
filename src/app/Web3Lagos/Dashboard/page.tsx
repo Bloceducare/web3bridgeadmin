@@ -76,7 +76,7 @@ export default function Dashboard() {
         setError("You are not logged in");
         const timer = setTimeout(() => {
          window.location.href = "/"
-        }, 2000)
+        }, 1000)
 
         return;
       }
