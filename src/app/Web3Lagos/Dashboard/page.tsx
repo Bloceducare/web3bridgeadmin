@@ -15,7 +15,7 @@ interface Program {
   description: string;
   venue: string[];
   extra_info: string;
-  images: Image[];
+  images: Image[]; 
   status: boolean;
 }
 
@@ -29,9 +29,10 @@ type FormData = {
   description: string;
   venue: ("online" | "onsite")[]; 
   extra_info: string;
-  images: Image[];
+  images: string[]; 
   [key: string]: any;
 };
+
 
 type FormErrors = {
   [key in keyof FormData]?: string[];
@@ -176,26 +177,18 @@ export default function Dashboard() {
   
 
   const handleChangePic = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, files } = e.target;
+    const { files } = e.target;
+    
+    if (files && files.length > 0) {
+      const newImageUrls = Array.from(files).map((file) => URL.createObjectURL(file));
   
-    if (files && files[0]) {
-      setFormData({
-        ...formData,
-        [name]: [...formData.images, files[0]], 
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: [], 
-      });
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...newImageUrls], 
+      }));
     }
-  
-    setErrors({
-      ...errors,
-      [name]: undefined,
-    });
   };
-
+  
   const openandCloseCourse = () => {
     setIsNewCourseOpen((prev) => !prev);
   }
@@ -220,7 +213,6 @@ export default function Dashboard() {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`, 
-            "Content-Type": "application/json",
           },
           body: JSON.stringify(formDataToSend), 
         }
@@ -319,7 +311,7 @@ export default function Dashboard() {
               
                  <label>Select Image</label>
               <input
-                type="file" name="images"    id="" onChange={handleChangePic}  className=""/>
+                type="file" name="images" multiple   id="" onChange={handleChangePic}  className=""/>
                  </div>
 
 
