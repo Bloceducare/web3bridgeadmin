@@ -1,15 +1,19 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 function Page() {
   const [message, setMessage] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState<boolean | null>(null);
+  const [token, setToken] = useState("")
 
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(event.target.value);
   };
+  useEffect(() => {
+    const token = localStorage.getItem("token") || "";
+  })
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -28,6 +32,7 @@ function Page() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(messageData),
       });
