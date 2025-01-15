@@ -74,7 +74,7 @@ export default function RootLayout({
             id="downArrow"
             className="cursor-pointer"
             onClick={toggleDropdown}
-          >
+          > 
             <Image src={downArror} alt="down arrow" className="w-[18px]" />
           </div>
 
