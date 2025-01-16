@@ -1,7 +1,8 @@
 "use client";
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { ScaleLoader } from "react-spinners";
+import { ScaleLoader, BeatLoader } from "react-spinners";
+import { Trash2 } from 'lucide-react';
 
 
 interface Image {
@@ -470,7 +471,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex justify-between">
-          <button type="submit"   className="mt-4 p-3 bg-blue-500 text-white rounded"  > {loading.add ? "Adding....." : "Add Course"} </button>
+          <button type="submit"   className="mt-4 p-3 bg-blue-500 text-white rounded"  > {loading.add ? <BeatLoader size={10} color='#ffff' /> : "Add Course"} </button>
           <button className="mt-2 text-red-500"  onClick={openandCloseCourse} >Cancel </button>
           </div>
 
@@ -546,7 +547,7 @@ export default function Dashboard() {
 
                 <div className="flex justify-end gap-5 items-end">
                 <button className="bg-green-700 px-3 py-1 rounded-md text-white" onClick={ () => handleUpdate(program.id)}>Update</button>
-                  <button className="bg-red-800 px-3 py-1 rounded-md text-white" onClick={ () => handleDelete(program.id)}>{loading.delete[program.id] ? "Deleting...." : "Delete"}</button>
+                  <button className="bg-red-800 px-3 py-1 rounded-md text-white" onClick={ () => handleDelete(program.id)}>{loading.delete[program.id] ? <BeatLoader size={5} /> : <Trash2 />}</button>
                 </div>
 
                 {Delmessage[program.id] && (
