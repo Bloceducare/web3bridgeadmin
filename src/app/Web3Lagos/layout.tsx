@@ -112,6 +112,13 @@ export default function RootLayout({
                     Programs
                   </Link>
                 </li>
+
+                  {/* Open Courses Link */}
+                  <li className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100">
+                  <Link href="/Web3Lagos/Dashboard/OpenProgram" className="block">
+                   Active Programs
+                  </Link>
+                </li>
               </ul>
             </div>
           )}

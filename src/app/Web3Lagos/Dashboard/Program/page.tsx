@@ -54,6 +54,7 @@ const initialFormErrors: FormErrors = {};
 function page() {
       const [registration, setRegistration] = useState<Registration[]>([])
         const [formData, setFormData] = useState<FormData>(initialFormState)
+        const [isRegistratinOpen, setIsRegistrationOpen] = useState<{ [key: number]: boolean }>({});
             const [errors, setErrors] = useState<FormErrors>(initialFormErrors);
       const [error, setError] = useState<string | null>(null);
       const [token, setToken] = useState("")
@@ -65,10 +66,12 @@ function page() {
         delete: { [key: number]: boolean }; 
         other: boolean; 
         add: boolean;
+        view:{ [key: number]: boolean };
       }>({
         delete: {}, 
         other: false,
-        add: false
+        add: false,
+        view: {}
       });
 
     
@@ -106,6 +109,15 @@ function page() {
     
             if (response.ok) {
               setRegistration(data.data); 
+              const initialState = data.data.reduce(
+                (acc: { [key: number]: boolean }, register: { id: number; is_open: boolean }) => {
+                  acc[register.id] = register.is_open;
+                  return acc;
+                },
+                {}
+              );
+    
+              setIsRegistrationOpen(initialState);
             } else {
               setError(`Failed to fetch programs: ${data.message || "Unknown error"}`);
             }
@@ -120,8 +132,12 @@ function page() {
         fetchRegistration();
       }, []);
 
-      const handleCourse = async (id: number[]) => {
+      const handleCourse = async (id: number[], num: number) => {
         console.log("Fetching courses for IDs:", id);
+        setLoading((prev) => ({
+          ...prev,
+          view: { ...prev.view, [num]: true },
+        }));
       
         try {
           const results: Course[] = []; 
@@ -153,6 +169,11 @@ function page() {
           setCourses(results);
         } catch (error) {
           console.error("Error fetching course data:", error);
+        } finally {
+          setLoading((prev) => ({
+            ...prev,
+            view: { ...prev.view, [num]: false },
+          }));
         }
       };
 
@@ -191,6 +212,38 @@ function page() {
               }));
               
         }
+      }
+
+      const handleRegistrationOpenOrClose = async (id: number) => { 
+
+        try {
+          const isCurrentlyOpen = isRegistratinOpen[id];
+          const enpoints = isCurrentlyOpen ? `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/${id}/close_registration/` : `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/${id}/open_registration/`
+
+          const response = await fetch(enpoints, {
+            method: "PUT",
+            headers: {
+              Authorization: `${token}`,
+              "Content-Type": "application/json", 
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Error: ${response.status} - ${response.statusText}`);
+          } else {
+            const data = await response.json();
+            setIsRegistrationOpen((prevState) => ({
+              ...prevState,
+              [id]: data.data.is_open, 
+            }));
+          }
+    
+         
+        } catch (error) {
+
+        }
+
+
       }
 
       const handleChange = (
@@ -330,8 +383,22 @@ function page() {
                         <p> <b>Open Date : </b> {register.start_date} </p>
                         <p> <b>Close Date : </b> {register.end_date} </p>
                         <div className='flex justify-between'>
-                        <button className='bg-green-700 px-2 text-white rounded-md py-1' onClick={() => handleCourse(register.courses)} >View Course</button>
+                        <button className='bg-green-700 px-2 text-white rounded-md py-1' onClick={() => handleCourse(register.courses, register.id)} >{loading.view[register.id] ? <BeatLoader size={5}  color='#ffff' />: "View Course" }</button>
+                        <div className='flex gap-5'>
+                          <button onClick={() => handleRegistrationOpenOrClose(register.id)}  title={  isRegistratinOpen[register.id]   ? "Close Registration"  : "Open Registration"  }>
+                        {isRegistratinOpen[register.id] ? (
+                                <span role="img" className='text-2xl' aria-label="Open Lock">
+                                  🔓
+                                </span>
+                              ) : (
+                                <span role="img" className='text-2xl' aria-label="Closed Lock">
+                                  🔒
+                                </span>
+                              )}
+                              </button>
                         <button onClick={() => handleDelete(register.id)}>{loading.delete[register.id] ? <BeatLoader size={5} />: <Trash2 /> }</button>
+
+                        </div>
                             </div>
 
                             {Delmessage[register.id] && (
@@ -342,7 +409,6 @@ function page() {
 
                      </div>         
                 ))}
-
             </div>
         )}
         </div>
@@ -352,7 +418,8 @@ function page() {
        
 
 
-
+       {!isNewProgramOpen && (
+        <div> 
 <div className='flex flex-col gap-5 mt-3'>
       {courses.map((course) => (
         <div key={course.id} className='border-2 border-black  rounded-md p-2  '>
@@ -364,6 +431,8 @@ function page() {
         </div>
       ))}
     </div>
+    </div>
+       )}
     </div>
   )
 }

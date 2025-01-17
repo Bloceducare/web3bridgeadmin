@@ -86,6 +86,7 @@ export default function Dashboard() {
   const [token, setToken] = useState("")
   const [registration, setRegistration] = useState<Registration[]>([])
   const [selectedPrograms, setSelectedPrograms] = useState<number[]>([]);
+  const [isCourseOpen, setIsCourseOpen] = useState< {[key: number]: boolean}>({})
 
   
   useEffect(() => {
@@ -122,6 +123,14 @@ export default function Dashboard() {
 
         if (response.ok) {
           setPrograms(data.data); 
+          const initialState = data.data.reduce(
+            (acc: { [key: number]: boolean }, course: { id: number; status: boolean }) => {
+              acc[course.id] = course.status;
+              return acc;
+            },
+            {}
+          );
+          setIsCourseOpen(initialState)
         } else {
           setError(`Failed to fetch programs: ${data.message || "Unknown error"}`);
         }
@@ -188,6 +197,42 @@ export default function Dashboard() {
         <div className="text-red-500">{error}</div>
       </div>
     );
+  }
+
+  const handleCourseOpenOrClose = async (id: number) => { 
+
+    try {
+      const isCurrentlyOpen = isCourseOpen[id];
+      const enpoints = isCurrentlyOpen ? `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/close_course/` : `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/open_course/`
+
+      const response = await fetch(enpoints, {
+        method: "PUT",
+        headers: {
+          Authorization: `${token}`,
+          "Content-Type": "application/json", 
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status} - ${response.statusText}`);
+      } else {
+        const data = await response.json();
+        setIsCourseOpen((prevState) => ({
+          ...prevState,
+          [id]: data.data.is_open, 
+        }));
+
+        const timer = setTimeout(() => {
+          window.location.href="/Web3Lagos/Dashboard"
+        }, 3000);
+      }
+
+     
+    } catch (error) {
+      console.log(error)
+    }
+
+
   }
 
 
@@ -498,7 +543,6 @@ export default function Dashboard() {
               <div
                 key={program.id}
                 className="bg-white p-4 rounded-md shadow-md  w-[45%] cursor-pointer space-y-3"
-                onClick={() => toggleDescription(program.id)} 
               >
                 <h2 className="text-xl font-semibold">{program.name}</h2>
 
@@ -508,6 +552,7 @@ export default function Dashboard() {
                     ${expandedDescriptionId === program.id ? "max-h-screen" : "max-h-24"} 
                     ${expandedDescriptionId === program.id ? "py-4" : "py-2"}
                   `}
+                onClick={() => toggleDescription(program.id)} 
                 >
                   <p className="text-base  leading-7">
                     {expandedDescriptionId === program.id
@@ -546,6 +591,17 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex justify-end gap-5 items-end">
+                <button onClick={() => handleCourseOpenOrClose(program.id)}  title={  isCourseOpen[program.id]   ? "Close Course"  : "Open Course"  }>
+                        {isCourseOpen[program.id] ? (
+                                <span role="img" className='text-2xl' aria-label="Open Lock">
+                                  🔓
+                                </span>
+                              ) : (
+                                <span role="img" className='text-2xl' aria-label="Closed Lock">
+                                  🔒
+                                </span>
+                              )}
+                              </button>
                 <button className="bg-green-700 px-3 py-1 rounded-md text-white" onClick={ () => handleUpdate(program.id)}>Update</button>
                   <button className="bg-red-800 px-3 py-1 rounded-md text-white" onClick={ () => handleDelete(program.id)}>{loading.delete[program.id] ? <BeatLoader size={5} /> : <Trash2 />}</button>
                 </div>
