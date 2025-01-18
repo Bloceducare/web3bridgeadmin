@@ -377,7 +377,7 @@ function page() {
             <div className='flex flex-wrap gap-5 justify-start mt-5'>
 
                 {registration.map((register) => (
-                    <div className='bg-white shadow-xl rounded-lg space-y-4 px-4 py-4 w-[35%]'>
+                    <div className='bg-white shadow-xl rounded-lg space-y-4 px-4 py-4 w-[30%]'>
                         <p> <b>Name : </b>  {register.name}</p>
                         <p> <b>Fee : </b> {register.registrationFee} </p>
                         <p> <b>Open Date : </b> {register.start_date} </p>
