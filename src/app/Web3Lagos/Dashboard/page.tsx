@@ -1,7 +1,8 @@
 "use client";
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { ScaleLoader } from "react-spinners";
+import { ScaleLoader, BeatLoader } from "react-spinners";
+import { Trash2 } from 'lucide-react';
 
 
 interface Image {
@@ -15,8 +16,18 @@ interface Program {
   description: string;
   venue: string[];
   extra_info: string;
-  images: Image[];
+  images: Image[]; 
   status: boolean;
+}
+
+interface Registration {
+  id: number,
+  name: string;
+  is_open: string;
+  end_date: string;
+  registrationFee: string;
+  courses: number[];
+  cohort: null | string;
 }
 
 interface ApiResponse {
@@ -24,14 +35,17 @@ interface ApiResponse {
   data: Program[];
 }
 
+
 type FormData = {
   name: string;
   description: string;
   venue: ("online" | "onsite")[]; 
   extra_info: string;
-  images: Image[];
+  images: File[]; 
+  registration: number[];
   [key: string]: any;
 };
+
 
 type FormErrors = {
   [key in keyof FormData]?: string[];
@@ -42,7 +56,8 @@ const initialFormState: FormData = {
   description: "",
   venue: [], 
   extra_info: "",
-  images: [] 
+  images: [], 
+  registration: []
 };
 
 const initialFormErrors: FormErrors = {};
@@ -53,26 +68,46 @@ export default function Dashboard() {
   const [formData, setFormData] = useState<FormData>(initialFormState)
       const [errors, setErrors] = useState<FormErrors>(initialFormErrors);
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<{
+    delete: { [key: number]: boolean }; 
+    other: boolean; 
+    add: boolean;
+  }>({
+    delete: {}, 
+    other: false,
+    add: false
+  });
+  
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [expandedDescriptionId, setExpandedDescriptionId] = useState<number | null>(null); 
   const [isNewCourseOpen, setIsNewCourseOpen] = useState<boolean>(false); 
-
+  const [Delmessage, setDelMessage] = useState<Record<string, string>>({});
+  const [token, setToken] = useState("")
+  const [registration, setRegistration] = useState<Registration[]>([])
+  const [selectedPrograms, setSelectedPrograms] = useState<number[]>([]);
+  const [isCourseOpen, setIsCourseOpen] = useState< {[key: number]: boolean}>({})
 
   
   useEffect(() => {
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("token") || "";
+    setToken(token)
     const fetchPrograms = async () => {
+      setLoading((prev) => ({ ...prev, other: true }));
       
       if (!token) {
+        setLoading((prev) => ({ ...prev, other: false }));
         setError("You are not logged in");
-        setLoading(false);
+        const timer = setTimeout(() => {
          window.location.href = "/"
+        }, 1000)
+
         return;
       }
 
+
       try {
+
         const response = await fetch(
           `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/all/`,
           {
@@ -88,6 +123,14 @@ export default function Dashboard() {
 
         if (response.ok) {
           setPrograms(data.data); 
+          const initialState = data.data.reduce(
+            (acc: { [key: number]: boolean }, course: { id: number; status: boolean }) => {
+              acc[course.id] = course.status;
+              return acc;
+            },
+            {}
+          );
+          setIsCourseOpen(initialState)
         } else {
           setError(`Failed to fetch programs: ${data.message || "Unknown error"}`);
         }
@@ -95,18 +138,52 @@ export default function Dashboard() {
         setError("Error fetching data");
         console.error("Error fetching data:", error);
       } finally {
-        setLoading(false);
+        setLoading((prev) => ({ ...prev, other: false }));
       }
     };
 
     fetchPrograms();
   }, []);
 
+  useEffect(() => {
+
+    const fetchRegistration = async () => {
+      try {
+
+        const response = await fetch(
+          `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/all/`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json(); 
+
+        if (response.ok) {
+          setRegistration(data.data); 
+        } else {
+          setError(`Failed to fetch programs: ${data.message || "Unknown error"}`);
+        }
+      } catch (error) {
+        setError("Error fetching data");
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading((prev) => ({ ...prev, other: false }));
+      }
+    };
+
+    fetchRegistration();
+  }, []);
+
   const toggleDescription = (programId: number) => {
     setExpandedDescriptionId((prev) => (prev === programId ? null : programId)); 
   };
 
-  if (loading) {
+  if (loading.other) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div> <ScaleLoader /> </div>
@@ -120,6 +197,42 @@ export default function Dashboard() {
         <div className="text-red-500">{error}</div>
       </div>
     );
+  }
+
+  const handleCourseOpenOrClose = async (id: number) => { 
+
+    try {
+      const isCurrentlyOpen = isCourseOpen[id];
+      const enpoints = isCurrentlyOpen ? `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/close_course/` : `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/open_course/`
+
+      const response = await fetch(enpoints, {
+        method: "PUT",
+        headers: {
+          Authorization: `${token}`,
+          "Content-Type": "application/json", 
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status} - ${response.statusText}`);
+      } else {
+        const data = await response.json();
+        setIsCourseOpen((prevState) => ({
+          ...prevState,
+          [id]: data.data.is_open, 
+        }));
+
+        const timer = setTimeout(() => {
+          window.location.href="/Web3Lagos/Dashboard"
+        }, 3000);
+      }
+
+     
+    } catch (error) {
+      console.log(error)
+    }
+
+
   }
 
 
@@ -160,64 +273,161 @@ export default function Dashboard() {
     }));
   };
   
-  
-  
-  
+  const handleSelectProgram = (id: number) => {
+    console.log(id)
+    setSelectedPrograms((prevSelected) => {
+      if (prevSelected.includes(id)) {
+        // If the program is selected remove the program shii
+        return prevSelected.filter((programId) => programId !== id);
+      } else {
+        // If the program is not selected, add the program
+        return [...prevSelected, id];
+      }
+    });
+    setFormData((prev) => {
+      const isAlreadySelected = prev.registration.includes(id);
 
-  const handleChangePic = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, files } = e.target;
-  
-    if (files && files[0]) {
-      setFormData({
-        ...formData,
-        [name]: [...formData.images, files[0]], 
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: [], 
-      });
-    }
-  
-    setErrors({
-      ...errors,
-      [name]: undefined,
+      return {
+        ...prev,
+        registration: isAlreadySelected
+          ? prev.registration.filter((regId) => regId !== id) 
+          : [...prev.registration, id], 
+      };
     });
   };
-
+  
+  
+  
+  const handleChangePic = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { files } = e.target;
+  
+    if (files && files.length > 0) {
+      const fileArray = Array.from(files); 
+  
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...fileArray], 
+      }));
+    }
+  };
+  
+  
   const openandCloseCourse = () => {
     setIsNewCourseOpen((prev) => !prev);
   }
   
 
   const handleNewCourse = async (e: React.FormEvent) => {
-    console.log("clicked")
     e.preventDefault();
+    console.log("clicked");
     setMessage("");
-    setErrors(initialFormErrors); 
+    setErrors(initialFormErrors);
+    setLoading((prev) => ({ ...prev, add: true }));
+  
+    const formDataToSend = new FormData();
+  
+    formDataToSend.append("name", formData.name);
+    formDataToSend.append("description", formData.description);
+    formDataToSend.append("extra_info", formData.extra_info);
+  
+    formDataToSend.append("venue", JSON.stringify(formData.venue));
+    formData.registration.forEach((registerId) => {
+      formDataToSend.append("registration", registerId.toString()); 
+    });
+  
+    formData.images.forEach((file) => {
+      formDataToSend.append("images", file);
+    });
 
-    const formDataToSend = {
-      ...formData,
-    };
-
-    console.log(formDataToSend)
+    console.log("FormData being sent:", [formDataToSend]);
+  
     try {
-      const response = await axios.post("https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/", formDataToSend)
-      const data = response.data
-      if (data) {
-     setMessage("Course Created succesfully")
-    console.log("course created")
-    const timer = setTimeout(() => {
-      openandCloseCourse();
-    }, 3000);
-    setFormData(initialFormState);
+      const response = await fetch(
+        "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `${token}`, 
+          },
+          body: formDataToSend, 
+        }
+      );
+  
+      const data = await response.json();
+  
+      if (response.ok) {
+        setMessage("Course Created successfully");
+        console.log("course created");
+        setFormData(initialFormState);
+        const timer = setTimeout(() => {
+          openandCloseCourse();
+          window.location.href="/Web3Lagos/Dashboard"
+        }, 3000);
       } else {
-        setMessage("Unable to create Course now. We are working on it")
+        setMessage(
+          `Unable to create Course: ${data.message || "Please try again later"}`
+        );
       }
     } catch (error) {
-      console.log(error)
-      setMessage("Network error. Please try again later")
+      console.log("Network error:", error);
+      setMessage("Network error. Please try again later");
+    } finally {
+      setLoading((prev) => ({ ...prev, add: false }));
     }
+  };
+  
+  
+  const handleDelete = async (id: number) => {
+    try {
+      setLoading((prev) => ({
+        ...prev,
+        delete: { ...prev.delete, [id]: true },
+      }));
+    
+      const response = await fetch(
+        `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json", 
+            Authorization: `${token}`, 
+          },
+        }
+      );
+  
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Course deleted:", data);
+  
+        setDelMessage((prev) => ({
+          ...prev,
+          [id]: "Course deleted successfully!",
+        }));
+  
+        const timer = setTimeout(() => {
+          window.location.href = "/Web3Lagos/Dashboard";
+        }, 2000);
+        return () => clearTimeout(timer);
+      } else {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete course");
+      }
+    } catch (error) {
+      console.error("Error deleting the course:", error);
+      setMessage("Error deleting the Course");
+    } finally {
+      setLoading((prev) => ({
+        ...prev,
+        delete: { ...prev.delete, [id]: false },
+      }));
+      }
+  };
+  
+
+  const handleUpdate = ( id: number ) => {
+
+    console.log( "This is the Updated clicked id", id)
+
   }
 
   
@@ -234,11 +444,11 @@ export default function Dashboard() {
 
           {/* New Course Form */}
           {isNewCourseOpen && (
-          <div className="bg-white p-6 rounded-md shadow-md mt-4 space-x-5">
+          <div className="bg-white p-6 rounded-md shadow-md mt-2 space-x-4">
             <h2 className="text-2xl font-semibold">Add New Course</h2>
             <form onSubmit={handleNewCourse} className="space-y-6 mt-3">
-              <div className="space-y-3">
-                <label>Name</label>
+              <div className="space-y-2">
+                <label className="font-semibold">Name</label>
                 <input
                   type="text"
                   name="name"
@@ -247,21 +457,21 @@ export default function Dashboard() {
                   className="border rounded p-2 w-full"
                 />
               </div>
-              <div className="space-y-3">
-                <label>Description</label>
-              <p className="border w-full h-[20vh]">  <input type="text" name="description" id="" value={formData.description} onChange={handleChange} className="w-full h-[10vh] outline-none"  /></p>
+              <div className="space-y-2">
+                <label className="font-semibold">Description</label>
+              <p className="border w-full h-[18vh]">  <input type="text" name="description" id="" value={formData.description} onChange={handleChange} className="w-full h-[10vh] outline-none"  /></p>
               </div>
 
               <div className="space-y-3">
-                <label>Extra info</label>
-                <input type="text" name="extra_info" id="" value={formData.extra_info} onChange={handleChange} className="border w-full h-[10vh]" />
+                <label className="font-semibold">Extra info</label>
+                <input type="text" name="extra_info" id="" value={formData.extra_info} onChange={handleChange} className="border w-full h-[7vh]" />
               </div>
 
               <div className="space-y-3">
               
-                 <label>Select Image</label>
+                 <label className="font-semibold">Select Image</label>
               <input
-                type="file" name="images"    id="" onChange={handleChangePic}  className=""/>
+                type="file" name="images" multiple   id="" onChange={handleChangePic}  className=""/>
                  </div>
 
 
@@ -289,8 +499,24 @@ export default function Dashboard() {
           </div>
           </div>
 
+          <div>
+            <p className="font-semibold">Select program</p>
+            <div className="flex flex-row gap-4 flex-wrap">
+            {registration.map((register) => (
+              <div >
+                <p onClick={() => handleSelectProgram(register.id)} className={`mt-2 rounded-md px-4 py-2 text-white cursor-pointer ${
+              selectedPrograms.includes(register.id) ? "bg-blue-500" : "bg-green-500"
+            }`}>{register.name}</p>
+              </div>
+            ))
+
+            }
+            </div>
+            
+          </div>
+
           <div className="flex justify-between">
-          <button type="submit"   className="mt-4 p-3 bg-blue-500 text-white rounded"  > Add Course  </button>
+          <button type="submit"   className="mt-4 p-3 bg-blue-500 text-white rounded"  > {loading.add ? <BeatLoader size={10} color='#ffff' /> : "Add Course"} </button>
           <button className="mt-2 text-red-500"  onClick={openandCloseCourse} >Cancel </button>
           </div>
 
@@ -306,18 +532,6 @@ export default function Dashboard() {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 {!isNewCourseOpen && (
 
   <div>
@@ -329,7 +543,6 @@ export default function Dashboard() {
               <div
                 key={program.id}
                 className="bg-white p-4 rounded-md shadow-md  w-[45%] cursor-pointer space-y-3"
-                onClick={() => toggleDescription(program.id)} 
               >
                 <h2 className="text-xl font-semibold">{program.name}</h2>
 
@@ -339,6 +552,7 @@ export default function Dashboard() {
                     ${expandedDescriptionId === program.id ? "max-h-screen" : "max-h-24"} 
                     ${expandedDescriptionId === program.id ? "py-4" : "py-2"}
                   `}
+                onClick={() => toggleDescription(program.id)} 
                 >
                   <p className="text-base  leading-7">
                     {expandedDescriptionId === program.id
@@ -375,7 +589,36 @@ export default function Dashboard() {
                     />
                   ))}
                 </div>
+
+                <div className="flex justify-end gap-5 items-end">
+                <button onClick={() => handleCourseOpenOrClose(program.id)}  title={  isCourseOpen[program.id]   ? "Close Course"  : "Open Course"  }>
+                        {isCourseOpen[program.id] ? (
+                                <span role="img" className='text-2xl' aria-label="Open Lock">
+                                  🔓
+                                </span>
+                              ) : (
+                                <span role="img" className='text-2xl' aria-label="Closed Lock">
+                                  🔒
+                                </span>
+                              )}
+                              </button>
+                <button className="bg-green-700 px-3 py-1 rounded-md text-white" onClick={ () => handleUpdate(program.id)}>Update</button>
+                  <button className="bg-red-800 px-3 py-1 rounded-md text-white" onClick={ () => handleDelete(program.id)}>{loading.delete[program.id] ? <BeatLoader size={5} /> : <Trash2 />}</button>
+                </div>
+
+                {Delmessage[program.id] && (
+          <div>
+            <p className="text-center ">{Delmessage[program.id]}</p>
+          </div>
+        )}
+
+
+
+
+
               </div>
+              
+
             ))}
           </div>
         )}

@@ -40,7 +40,10 @@ const Participants: React.FC = () => {
       if (!token) {
         setError("You are not logged in");
         setLoading(false);
-         window.location.href = "/"
+        const timer = setTimeout(() => {
+          window.location.href = "/"
+         }, 1000)
+ 
         return;
       }
     }
