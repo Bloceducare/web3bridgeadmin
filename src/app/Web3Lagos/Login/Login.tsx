@@ -105,42 +105,114 @@ const Login = () => {
   }
 
   return (
-    <div className="w-full overflow-hidden h-full p-4 ">
-        <div className="flex justify-start">
-          <Image src={Logo} alt="Web3Bridge Logo" />
-        </div>
+    // <div className="w-full overflow-hidden h-full p-4 ">
+    //     <div className="flex justify-start">
+    //       <Image src={Logo} alt="Web3Bridge Logo" />
+    //     </div>
 
-        <section className="flex justify-center mt-10">
+    //     <section className="flex justify-center mt-10">
 
-        <div className="border shadow-xl w-4/5 flex  flex-col space-y-20 p-10 rounded-xl"> 
-        <div className="space-y-5">
-        <h2 className="text-4xl">Login</h2>
+    //     <div className="border shadow-xl w-4/5 flex  flex-col space-y-20 p-10 rounded-xl"> 
+    //     <div className="space-y-5">
+    //     <h2 className="text-4xl">Login</h2>
 
-          <p>Access your dashboard as an admin</p>
-        </div>
+    //       <p>Access your dashboard as an admin</p>
+    //     </div>
 
         
 
 
 
-        <form onSubmit={handleLogin} className="flex flex-col gap-14  text-xl">
+    //     <form onSubmit={handleLogin} className="flex flex-col gap-14  text-xl">
+    //       <div className="flex flex-col gap-10  text-xl">
+    //       <div className="flex flex-col gap-2">
+    //       <label htmlFor="username">Username</label>
+    //       <input
+    //         id="username"
+    //         type="text"
+    //         value={formData.username}
+    //         onChange={handleChange}
+    //         name="username"
+    //         placeholder="Enter your username"
+    //         className="p-2 border outline-none"
+    //       />
+    //     </div>
+    //     <div className="flex flex-col gap-2">
+    //       <label htmlFor="password">Password</label>
+    //       <div className="flex border justify-between p-2">
+    //       <input
+    //               type={showPassword ? "text" : "password"}
+    //               id="twitter"
+    //               name="password"
+    //               onChange={handleChange}
+    //               placeholder="Enter your password."
+    //               value={formData.password}
+    //               required
+    //               className="outline-none"
+    //             />
+    //              <div
+    //               className=" right-0 flex items-center pr-3 cursor-pointer"
+    //               onClick={() => setShowPassword(!showPassword)}
+    //             >
+    //               {showPassword ? <EyeOff /> : <Eye />}
+    //             </div>
+    //       </div>
+
+    //     </div>
+
+    //       </div>
+
+    //       <div className="space-y-5 flex flex-col ">
+      
+    //     <button className="border p-5 rounded-full bg-[#181A1C] text-white"
+    //             type="submit"
+    //             disabled={loading}
+    //           >
+    //             {loading ? <ScaleLoader color="#ffff" /> : "LogIn"}
+    //           </button>
+    //           <div className="flex justify-center">
+    //           {message ? <p>{message}</p> : "" }
+    //           </div>
+    //           </div>
+    //   </form>
+
+
+
+    //     </div>
+    //     </section>
+    
+    // </div>
+    <div className=" overflow-hidden h-full p-4 lg:mt-10 mt-28">
+    {/* <div className="flex justify-start">
+      <Image src={Logo} alt="Web3Bridge Logo" />
+    </div> */}
+
+    <section className="flex justify-center ">
+      <div className="border shadow-xl lg:w-1/2  w-full  flex  flex-col space-y-6 p-10 rounded-xl">
+        <h2 className="text-4xl">Login</h2>
+        <p>Access your dashboard as an admin</p>
+
+        <form
+          onSubmit={handleLogin}
+          className="flex flex-col gap-14  text-xl"
+        >
           <div className="flex flex-col gap-10  text-xl">
-          <div className="flex flex-col gap-2">
-          <label htmlFor="username">Username</label>
-          <input
-            id="username"
-            type="text"
-            value={formData.username}
-            onChange={handleChange}
-            name="username"
-            placeholder="Enter your username"
-            className="p-2 border outline-none"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label htmlFor="password">Password</label>
-          <div className="flex border justify-between p-2">
-          <input
+            <div className="flex flex-col gap-2">
+              <label htmlFor="username">Username</label>
+              <input
+                id="username"
+                type="text"
+                value={formData.username}
+                onChange={handleChange}
+                name="username"
+                placeholder="Enter your username"
+                className="p-2 border outline-none"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="password">Password</label>
+              <div className="flex border justify-between p-2">
+                <input
                   type={showPassword ? "text" : "password"}
                   id="twitter"
                   name="password"
@@ -150,39 +222,33 @@ const Login = () => {
                   required
                   className="outline-none"
                 />
-                 <div
+                <div
                   className=" right-0 flex items-center pr-3 cursor-pointer"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff /> : <Eye />}
                 </div>
-          </div>
-
-        </div>
-
+              </div>
+            </div>
           </div>
 
           <div className="space-y-5 flex flex-col ">
-      
-        <button className="border p-5 rounded-full bg-[#181A1C] text-white"
-                type="submit"
-                disabled={loading}
-              >
-                {loading ? <ScaleLoader color="#ffff" /> : "LogIn"}
-              </button>
-              <div className="flex justify-center">
-              {message ? <p>{message}</p> : "" }
-              </div>
-              </div>
-      </form>
-
-
-
-        </div>
-        </section>
-    
-    </div>
-  );
+            <button
+              className="border p-5 rounded-full bg-[#181A1C] text-white"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? <ScaleLoader color="#ffff" /> : "LogIn"}
+            </button>
+            <div className="flex justify-center">
+              {message ? <p>{message}</p> : ""}
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+);
 };
 
 export default Login;
