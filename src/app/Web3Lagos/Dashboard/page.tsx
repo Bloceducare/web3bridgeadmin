@@ -417,10 +417,11 @@ export default function Dashboard() {
       }));
     }
   };
+  
 
-  const handleUpdate = (id: number) => {
-    console.log("This is the Updated clicked id", id);
-  };
+ 
+
+  
 
   return (
     <div className="bg-green-200 w-full min-h-screen p-4 md:p-10">
@@ -641,35 +642,21 @@ export default function Dashboard() {
                       ))}
                     </div>
 
-                    <div className="flex justify-end items-center gap-3 mt-4">
-                      <button
-                        onClick={() => handleCourseOpenOrClose(program.id)}
-                        title={
-                          isCourseOpen[program.id]
-                            ? "Close Course"
-                            : "Open Course"
-                        }
-                        className="text-xl md:text-2xl"
-                      >
-                        {isCourseOpen[program.id] ? "🔓" : "🔒"}
-                      </button>
-                      <button
-                        className="bg-green-700 px-2 py-1 md:px-3 md:py-1 rounded-md text-white text-sm"
-                        onClick={() => handleUpdate(program.id)}
-                      >
-                        Update
-                      </button>
-                      <button
-                        className="bg-red-800 px-2 py-1 md:px-3 md:py-1 rounded-md text-white text-sm"
-                        onClick={() => handleDelete(program.id)}
-                      >
-                        {loading.delete[program.id] ? (
-                          <BeatLoader size={5} />
-                        ) : (
-                          <Trash2 size={16} />
-                        )}
-                      </button>
-                    </div>
+                <div className="flex justify-end gap-5 items-end">
+                <button onClick={() => handleCourseOpenOrClose(program.id)}  title={  isCourseOpen[program.id]   ? "Close Course"  : "Open Course"  }>
+                        {isCourseOpen[program.id] ? (
+                                <span role="img" className='text-2xl' aria-label="Open Lock">
+                                  🔓
+                                </span>
+                              ) : (
+                                <span role="img" className='text-2xl' aria-label="Closed Lock">
+                                  🔒
+                                </span>
+                              )}
+                              </button>
+                <button className="bg-green-700 px-3 py-1 rounded-md text-white" onClick={ () => handleUpdate(program.id)}>Update</button>
+                  <button className="bg-red-800 px-3 py-1 rounded-md text-white" onClick={ () => handleDelete(program.id)}>{loading.delete[program.id] ? <BeatLoader size={5} /> : <Trash2 />}</button>
+                </div>
 
                     {Delmessage[program.id] && (
                       <div className="mt-2">
