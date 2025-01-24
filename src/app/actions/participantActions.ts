@@ -1,54 +1,62 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+import { z } from 'zod';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export async function getParticipants(page = 1, limit = 20) {
+const ParticipantSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+  gender: z.string(),
+  country: z.string(),
+  role: z.string(),
+  attendance: z.number()
+});
+
+export async function getParticipants() {
+  const url = `${API_BASE_URL}/api/v2/cohort/participant/all/`;
+
   try {
-    const response = await fetch(`${API_BASE_URL}/cohort/participant/all?page=${page}&limit=${limit}`, {
-        method: 'GET',
+    const response = await fetch(url, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      next: { revalidate: 60 }
     });
 
     if (!response.ok) {
       throw new Error('Failed to fetch participants');
     }
 
-    return response.json();
+    const responseData = await response.json();
+    return responseData.data.results || [];
   } catch (error) {
     console.error('Fetch participants error:', error);
-    return { participants: [], total: 0 };
+    return [];
   }
 }
 
-export async function updateParticipant(id: string, formData: FormData) {
-  const participantData = {
-    name: formData.get('name'),
-    email: formData.get('email'),
-    gender: formData.get('gender'),
-    country: formData.get('country'),
-    role: formData.get('role')
-  };
-
+export async function updateParticipant(participant: z.infer<typeof ParticipantSchema>) {
   try {
-    const response = await fetch(`${API_BASE_URL}/cohort/participant/${id}`, {
+    const validatedData = ParticipantSchema.parse(participant);
+
+    const response = await fetch(`${API_BASE_URL}/api/v2/cohort/participant/${validatedData.id}/`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(participantData)
+      body: JSON.stringify(validatedData)
     });
 
     if (!response.ok) {
       throw new Error('Failed to update participant');
     }
 
-    revalidatePath('/participants');
-    redirect('/participants');
+    revalidatePath('/Participants');
+    return { success: true };
   } catch (error) {
     console.error('Update participant error:', error);
     return { error: 'Failed to update participant' };
@@ -57,7 +65,7 @@ export async function updateParticipant(id: string, formData: FormData) {
 
 export async function deleteParticipant(id: string) {
   try {
-    const response = await fetch(`${API_BASE_URL}/cohort/participant/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v2/cohort/participant/${id}/`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json'
@@ -68,7 +76,8 @@ export async function deleteParticipant(id: string) {
       throw new Error('Failed to delete participant');
     }
 
-    revalidatePath('/participants');
+    revalidatePath('/Participants');
+    return { success: true };
   } catch (error) {
     console.error('Delete participant error:', error);
     return { error: 'Failed to delete participant' };
