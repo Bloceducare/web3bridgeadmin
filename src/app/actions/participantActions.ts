@@ -11,12 +11,12 @@ const ParticipantSchema = z.object({
   email: z.string().email(),
   gender: z.string(),
   country: z.string(),
-  role: z.string(),
-  attendance: z.number()
+  course: z.string(),
+  // attendance: z.number()
 });
 
 export async function getParticipants() {
-  const url = `${API_BASE_URL}/api/v2/cohort/participant/all/`;
+  const url = 'https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/all/'
 
   try {
     const response = await fetch(url, {
@@ -43,7 +43,7 @@ export async function updateParticipant(participant: z.infer<typeof ParticipantS
   try {
     const validatedData = ParticipantSchema.parse(participant);
 
-    const response = await fetch(`${API_BASE_URL}/api/v2/cohort/participant/${validatedData.id}/`, {
+    const response = await fetch(`${API_BASE_URL}/cohort/participant/${validatedData.id}/`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
@@ -65,7 +65,8 @@ export async function updateParticipant(participant: z.infer<typeof ParticipantS
 
 export async function deleteParticipant(id: string) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v2/cohort/participant/${id}/`, {
+    const response = await fetch(
+      `${API_BASE_URL}/cohort/participant/${id}/`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json'

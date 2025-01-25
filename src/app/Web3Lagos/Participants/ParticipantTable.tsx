@@ -51,8 +51,8 @@ export type Participant = {
   email: string;
   gender: string;
   country: string;
-  role: string;
-  attendance: number;
+  course: string;
+  // attendance: number;
 };
 
 export function ParticipantsTable({ data }: { data: Participant[] }) {
@@ -367,18 +367,18 @@ export function ParticipantsTable({ data }: { data: Participant[] }) {
                   Role
                 </Label>
                 <Input
-                  id="role"
-                  value={editingParticipant.role}
+                  id="course"
+                  value={editingParticipant.course}
                   onChange={(e) =>
                     setEditingParticipant({
                       ...editingParticipant,
-                      role: e.target.value,
+                      course: e.target.value,
                     })
                   }
                   className="col-span-3"
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
+              {/* <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="attendance" className="text-right">
                   Attendance
                 </Label>
@@ -394,7 +394,7 @@ export function ParticipantsTable({ data }: { data: Participant[] }) {
                   }
                   className="col-span-3"
                 />
-              </div>
+              </div> */}
             </div>
           )}
           <DialogFooter>
