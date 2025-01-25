@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL ="https://web3bridgewebsitebackend.onrender.com"
 
 const ParticipantSchema = z.object({
   id: z.string(),
@@ -11,12 +11,12 @@ const ParticipantSchema = z.object({
   email: z.string().email(),
   gender: z.string(),
   country: z.string(),
-  course: z.string(),
-  // attendance: z.number()
+  role: z.string(),
+  attendance: z.number()
 });
 
 export async function getParticipants() {
-  const url = 'https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/all/'
+  const url = `${API_BASE_URL}/cohort/participant/all/`;
 
   try {
     const response = await fetch(url, {
@@ -65,8 +65,7 @@ export async function updateParticipant(participant: z.infer<typeof ParticipantS
 
 export async function deleteParticipant(id: string) {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/cohort/participant/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/api/v2/cohort/participant/${id}/`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json'
