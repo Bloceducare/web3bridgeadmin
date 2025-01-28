@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { ScaleLoader } from "react-spinners";
 import { Trash2, LockKeyholeOpen,  } from 'lucide-react';
 import {BeatLoader} from 'react-spinners';
+import { handledeleteProgram, fetchRegistrationData } from '@/hooks/useUpdateProgram';
 
 
 interface Registration {
@@ -29,20 +30,23 @@ interface Course {
     extra_info: string;
     images: Image[]; 
     status: boolean;
+    cohort: null | string;
 }
 
 type FormData = {
     name: string;
     start_date: string;
     end_date: string;
-    registrationFee: string
+    registrationFee: string;
+    cohort: string;
 }
 
 const initialFormState: FormData = {
     name: "",
     start_date: "",
     end_date: "",
-    registrationFee: ""
+    registrationFee: "",
+    cohort: "",
 };
 
 type FormErrors = {
@@ -72,147 +76,95 @@ function page() {
         other: false,
         add: false,
         view: {}
-      });
+      }); 
 
-    
-
-    useEffect(() => {
+      useEffect(() => {
         const token = localStorage.getItem("token") || "";
         setToken(token)
-
-        const fetchRegistration = async () => {
-            setLoading((prev) => ({ ...prev, other: true }));
-      
-            if (!token) {
-              setLoading((prev) => ({ ...prev, other: false }));
-              setError("You are not logged in");
-              const timer = setTimeout(() => {
-               window.location.href = "/"
-              }, 1000)
-      
-              return;
-            }
-          try {
-    
-            const response = await fetch(
-              `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/all/`,
-              {
-                method: "GET",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
-    
-            const data = await response.json(); 
-    
-            if (response.ok) {
-              setRegistration(data.data); 
-              const initialState = data.data.reduce(
-                (acc: { [key: number]: boolean }, register: { id: number; is_open: boolean }) => {
-                  acc[register.id] = register.is_open;
-                  return acc;
-                },
-                {}
-              );
-    
-              setIsRegistrationOpen(initialState);
-            } else {
-              setError(`Failed to fetch programs: ${data.message || "Unknown error"}`);
-            }
-          } catch (error) {
-            setError("Error fetching data");
-            console.error("Error fetching data:", error);
-          } finally {
-            setLoading((prev) => ({ ...prev, other: false }));
-          }
-        };
-    
-        fetchRegistration();
+        fetchRegistrationData(token,  setRegistration, setIsRegistrationOpen, setError, setLoading);
       }, []);
 
       const handleCourse = async (id: number[], num: number) => {
-        console.log("Fetching courses for IDs:", id);
-        setLoading((prev) => ({
-          ...prev,
-          view: { ...prev.view, [num]: true },
-        }));
-      
-        try {
-          const results: Course[] = []; 
-      
-          for (const courseID of id) {
-            const response = await fetch(
-              `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${courseID}`,
-              {
-                method: "GET",
-                headers: {
-                  Authorization: `${token}`,
-                },
+              console.log("Fetching courses for IDs:", id);
+              setLoading((prev) => ({
+                ...prev,
+                view: { ...prev.view, [num]: true },
+              }));
+            
+              try {
+                const results: Course[] = []; 
+            
+                for (const courseID of id) {
+                  const response = await fetch(
+                    `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${courseID}`,
+                    {
+                      method: "GET",
+                      headers: {
+                        Authorization: `${token}`,
+                      },
+                    }
+                  );
+            
+                  if (!response.ok) {
+                    throw new Error(`Error: ${response.status} - ${response.statusText}`);
+                  }
+            
+                  const responseData = await response.json();
+                  console.log("API initial Response:", responseData);
+            
+                  if (responseData.success && responseData.data) {
+                    results.push(responseData.data);
+                    console.log("The real data gan gan :", results) 
+                  }
+                }
+            
+                setCourses(results);
+              } catch (error) {
+                console.error("Error fetching course data:", error);
+              } finally {
+                setLoading((prev) => ({
+                  ...prev,
+                  view: { ...prev.view, [num]: false },
+                }));
               }
-            );
-      
-            if (!response.ok) {
-              throw new Error(`Error: ${response.status} - ${response.statusText}`);
-            }
-      
-            const responseData = await response.json();
-            console.log("API initial Response:", responseData);
-      
-            if (responseData.success && responseData.data) {
-              results.push(responseData.data);
-              console.log("The real data gan gan :", results) 
-            }
-          }
-      
-          setCourses(results);
-        } catch (error) {
-          console.error("Error fetching course data:", error);
-        } finally {
-          setLoading((prev) => ({
-            ...prev,
-            view: { ...prev.view, [num]: false },
-          }));
-        }
       };
 
-      const handleDelete = async (id: number) => {
-        setLoading((prev) => ({
-            ...prev,
-            delete: { ...prev.delete, [id]: true },
-          }));
-        try {
-            const response = await fetch(`https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/${id}/`, {
-                method: "DELETE",
-                headers: {
-                  Authorization: `${token}`,
-                },  
-            })
-            if (response.ok) {
-                const data = await response.json();
-                console.log("Course deleted:", data);
-          
-                setDelMessage((prev) => ({
-                  ...prev,
-                  [id]: "Course deleted successfully!",
-                }));
-            }
-
-            const timer = setTimeout(() => {
-                window.location.href="/Web3Lagos/Dashboard/Program"
-              }, 3000);
-
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setLoading((prev) => ({
-                ...prev,
-                delete: { ...prev.delete, [id]: false },
-              }));
-              
-        }
-      }
+   const handleDelete = async (id: number) => {
+       setLoading((prev) => ({
+         ...prev,
+         delete: {
+           ...prev.delete,
+           [id]: true, 
+         },
+       }));
+       try {
+         await handledeleteProgram(id, token, (message: string) => {
+           setDelMessage((prev) => ({
+             ...prev,
+             [id]: message,
+           }));
+         });
+     
+         if (token) {
+           fetchRegistrationData(token,  setRegistration, setIsRegistrationOpen, setError);
+         }
+       } catch (error) {
+         console.error("Error deleting the course:", error);
+         setDelMessage((prev) => ({
+           ...prev,
+           [id]: "An error occurred while deleting the course.",
+         }));
+       } finally {
+         setLoading((prev) => ({
+           ...prev,
+           delete: {
+             ...prev.delete,
+             [id]: false, // Set loading to false for the specific course
+           },
+         }));
+       }
+     };
+     
 
       const handleRegistrationOpenOrClose = async (id: number) => { 
 
@@ -245,8 +197,8 @@ function page() {
 
 
       }
-
-      const handleChange = (
+      
+const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
       ) => {
         const { name, value } = e.target;
@@ -322,16 +274,14 @@ function page() {
         );
       }
 
-
   return (
     <div className="w-full overflow-hidden h-full p-4 bg-green-200">
         <div className='flex justify-between mt-5'>
             <h1 className='text-3xl font-bold'>{isNewProgramOpen ? "Create New Program" : "All Program"}</h1>
 
-            <div>
-                    <button className="flex justify-end items-center bg-[#2b292c] p-3 rounded-md text-white" onClick={openandCloseProgram}>Create Program</button>
-                </div>
-
+        <div>
+            <button className="flex justify-end items-center bg-[#2b292c] p-3 rounded-md text-white" onClick={openandCloseProgram}>Create Program</button>
+        </div>
         </div>
 
 
@@ -345,6 +295,10 @@ function page() {
                     <input type='text' placeholder='New program name' value={formData.name} name='name' onChange={handleChange} className="border w-full px-2 h-[5vh]" />
                 </div>
                 <div className='space-y-3'>
+                    <label className='font-bold'>Cohort</label>
+                    <input type='text' placeholder='XI' value={formData.cohort} name='cohort' onChange={handleChange} className="border w-full px-2 h-[5vh]" />
+                </div>
+                <div className='space-y-3'>
                     <label className='font-bold'>Registration Fee</label>
                     <input type='text' placeholder='New program name' value={formData.registrationFee} name='registrationFee' onChange={handleChange} className="border w-full px-2 h-[5vh]" />
                 </div>
@@ -356,11 +310,10 @@ function page() {
                     <label className='font-bold'>Close Date</label>
                     <input type="date" name="end_date" id="" value={formData.end_date} onChange={handleChange} className="border w-full " />
                 </div>
-
                 <div className="flex justify-between">
-          <button type="submit"   className="mt-4 p-3 bg-blue-500 text-white rounded"  > {loading.add ? <BeatLoader size={10} color='#ffff' /> : "Add Program"} </button>
-          <button className="mt-2 text-red-500"  onClick={openandCloseProgram} >Cancel </button>
-          </div>
+                  <button type="submit"   className="mt-4 p-3 bg-blue-500 text-white rounded"  > {loading.add ? <BeatLoader size={10} color='#ffff' /> : "Add Program"} </button>
+                  <button className="mt-2 text-red-500"  onClick={openandCloseProgram} >Cancel </button>
+                </div>
 
                 <div className="flex justify-center text-xl">
               {message ? <p>{message}</p> : "" }
@@ -379,6 +332,7 @@ function page() {
                 {registration.map((register) => (
                     <div className='bg-white shadow-xl rounded-lg space-y-4 px-4 py-4 w-[30%]'>
                         <p> <b>Name : </b>  {register.name}</p>
+                         <p> <b>Cohort :</b> {register.cohort} </p>
                         <p> <b>Fee : </b> {register.registrationFee} </p>
                         <p> <b>Open Date : </b> {register.start_date} </p>
                         <p> <b>Close Date : </b> {register.end_date} </p>

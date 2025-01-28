@@ -2,7 +2,8 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { ScaleLoader, BeatLoader } from "react-spinners";
-import { Trash2 } from 'lucide-react';
+import { Trash2, Pencil } from 'lucide-react';
+import { handleUpdateCourse, handleUpdateCourseButton, handleDeleteCourse, fetchPrograms } from "@/hooks/useUpdateCourse";
 
 
 interface Image {
@@ -46,6 +47,16 @@ type FormData = {
   [key: string]: any;
 };
 
+interface currentProgram {
+  id: number;
+  name: string;
+  description: string;
+  venue: string[];
+  extra_info: string;
+  images: Image[];
+  status: boolean;
+}
+
 
 type FormErrors = {
   [key in keyof FormData]?: string[];
@@ -66,16 +77,19 @@ const initialFormErrors: FormErrors = {};
 
 export default function Dashboard() {
   const [formData, setFormData] = useState<FormData>(initialFormState)
-      const [errors, setErrors] = useState<FormErrors>(initialFormErrors);
+  const [clickedProgram, setClickedPrograms] = useState<currentProgram[]>([])
+  const [errors, setErrors] = useState<FormErrors>(initialFormErrors);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState<{
     delete: { [key: number]: boolean }; 
     other: boolean; 
     add: boolean;
+    update: boolean
   }>({
     delete: {}, 
     other: false,
-    add: false
+    add: false,
+    update: false
   });
   
   const [message, setMessage] = useState("");
@@ -87,62 +101,14 @@ export default function Dashboard() {
   const [registration, setRegistration] = useState<Registration[]>([])
   const [selectedPrograms, setSelectedPrograms] = useState<number[]>([]);
   const [isCourseOpen, setIsCourseOpen] = useState< {[key: number]: boolean}>({})
+  const [isUpdateOpen, setIsUpdateOpen] = useState<boolean>(false); 
+  
 
   
   useEffect(() => {
     const token = localStorage.getItem("token") || "";
     setToken(token)
-    const fetchPrograms = async () => {
-      setLoading((prev) => ({ ...prev, other: true }));
-      
-      if (!token) {
-        setLoading((prev) => ({ ...prev, other: false }));
-        setError("You are not logged in");
-        const timer = setTimeout(() => {
-         window.location.href = "/"
-        }, 1000)
-
-        return;
-      }
-
-
-      try {
-
-        const response = await fetch(
-          `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/all/`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const data = await response.json(); 
-
-        if (response.ok) {
-          setPrograms(data.data); 
-          const initialState = data.data.reduce(
-            (acc: { [key: number]: boolean }, course: { id: number; status: boolean }) => {
-              acc[course.id] = course.status;
-              return acc;
-            },
-            {}
-          );
-          setIsCourseOpen(initialState)
-        } else {
-          setError(`Failed to fetch programs: ${data.message || "Unknown error"}`);
-        }
-      } catch (error) {
-        setError("Error fetching data");
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading((prev) => ({ ...prev, other: false }));
-      }
-    };
-
-    fetchPrograms();
+    fetchPrograms(token,  setPrograms, setIsCourseOpen, setError, setLoading);
   }, []);
 
   useEffect(() => {
@@ -365,7 +331,7 @@ export default function Dashboard() {
         }, 3000);
       } else {
         setMessage(
-          `Unable to create Course: ${data.message || "Please try again later"}`
+          `Please select all fields and try again: ${data.message || "Please try again later"}`
         );
       }
     } catch (error) {
@@ -375,58 +341,116 @@ export default function Dashboard() {
       setLoading((prev) => ({ ...prev, add: false }));
     }
   };
-  
-  
-  const handleDelete = async (id: number) => {
-    try {
-      setLoading((prev) => ({
-        ...prev,
-        delete: { ...prev.delete, [id]: true },
-      }));
+  //   try {
+  //     setLoading((prev) => ({
+  //       ...prev,
+  //       delete: { ...prev.delete, [id]: true },
+  //     }));
     
-      const response = await fetch(
-        `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json", 
-            Authorization: `${token}`, 
-          },
-        }
-      );
+  //     const response = await fetch(
+  //       `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/`,
+  //       {
+  //         method: "DELETE",
+  //         headers: {
+  //           "Content-Type": "application/json", 
+  //           Authorization: `${token}`, 
+  //         },
+  //       }
+  //     );
   
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Course deleted:", data);
+  //     if (response.ok) {
+  //       const data = await response.json();
+  //       console.log("Course deleted:", data);
   
+  //       setDelMessage((prev) => ({
+  //         ...prev,
+  //         [id]: "Course deleted successfully!",
+  //       }));
+  
+  //       const timer = setTimeout(() => {
+  //         window.location.href = "/Web3Lagos/Dashboard";
+  //       }, 2000);
+  //       return () => clearTimeout(timer);
+  //     } else {
+  //       const data = await response.json();
+  //       throw new Error(data.message || "Failed to delete course");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error deleting the course:", error);
+  //     setMessage("Error deleting the Course");
+  //   } finally {
+  //     setLoading((prev) => ({
+  //       ...prev,
+  //       delete: { ...prev.delete, [id]: false },
+  //     }));
+  //     }
+  // };
+
+  const openandCloseUpdate = () => {
+    setIsUpdateOpen((prev) => !prev);
+  }
+
+  const handleDelete = async (id: number) => {
+    setLoading((prev) => ({
+      ...prev,
+      delete: {
+        ...prev.delete,
+        [id]: true, 
+      },
+    }));
+    try {
+      await handleDeleteCourse(id, token, (message: string) => {
         setDelMessage((prev) => ({
           ...prev,
-          [id]: "Course deleted successfully!",
+          [id]: message,
         }));
+      });
   
-        const timer = setTimeout(() => {
-          window.location.href = "/Web3Lagos/Dashboard";
-        }, 2000);
-        return () => clearTimeout(timer);
-      } else {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to delete course");
+      if (token) {
+        fetchPrograms(token,  setPrograms, setIsCourseOpen, setError);
       }
     } catch (error) {
       console.error("Error deleting the course:", error);
-      setMessage("Error deleting the Course");
+      setDelMessage((prev) => ({
+        ...prev,
+        [id]: "An error occurred while deleting the course.",
+      }));
     } finally {
       setLoading((prev) => ({
         ...prev,
-        delete: { ...prev.delete, [id]: false },
+        delete: {
+          ...prev.delete,
+          [id]: false, // Set loading to false for the specific course
+        },
       }));
-      }
+    }
   };
   
 
- 
+  const handleUpdateButton = (id: number) => { 
+    handleUpdateCourseButton(id, token, formData, setFormData, setClickedPrograms, openandCloseUpdate)
+  }
 
-  
+  const refresh = "/Web3Lagos/Dashboard"
+
+ const updateCourse = (id: number) => {
+      handleUpdateCourse(id, token, refresh, formData, setMessage, setFormData, setClickedPrograms, openandCloseUpdate)
+  } 
+
+  const handleUpdateSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading((prev) => ({ ...prev, update: true }));
+          try {
+            if (formData.id !== null) {
+              updateCourse(formData.id);
+            }
+          } catch (error) {
+            console.error("Error updating course:", error);
+            setMessage("Error updating course");
+          } finally {
+            setLoading((prev) => ({ ...prev, update: false }));
+          } 
+        };
 
   return (
     <div className="bg-green-200 w-full h-full p-10">
@@ -434,12 +458,14 @@ export default function Dashboard() {
 
       <div className="space-y-10">
         <div className="flex justify-between">
-        <h1 className="text-center text-3xl font-bold"> {isNewCourseOpen ? "Create New Course" : "All Courses"}</h1>
+      {isUpdateOpen?  <h1 className="text-center text-3xl font-bold"> Update Course</h1> : <h1 className="text-center text-3xl font-bold"> {isNewCourseOpen ? "Create New Course" : "All Courses"}</h1>}
         <button className="flex justify-end items-center bg-[#2b292c] p-3 rounded-md text-white" onClick={openandCloseCourse}>New Course </button>
         </div>
 
           {/* New Course Form */}
-          {isNewCourseOpen && (
+     {!isUpdateOpen &&  ( 
+      <div>
+      {isNewCourseOpen && (
           <div className="bg-white p-6 rounded-md shadow-md mt-2 space-x-4">
             <h2 className="text-2xl font-semibold">Add New Course</h2>
             <form onSubmit={handleNewCourse} className="space-y-6 mt-3">
@@ -523,10 +549,98 @@ export default function Dashboard() {
             </form>
           </div>
         )}
+        </div>
+        )}
 
         {/*End of new course form */}
 
-
+            {/* Update Course Form */}
+                    {isUpdateOpen && (
+                  <div className="bg-white p-6 rounded-md shadow-md mt-2 space-x-4">
+                    <h2 className="text-2xl font-semibold">Add New Course</h2>
+                    <form className="space-y-6 mt-3" onSubmit={handleUpdateSubmit}>
+                      <div className="space-y-2">
+                        <label className="font-semibold">Name</label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleChange}
+                          className="border rounded p-2 w-full"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="font-semibold">Description</label>
+                      <p className="border w-full h-[18vh]">  <input type="text" name="description" id="" value={formData.description} onChange={handleChange} className="w-full h-[10vh] outline-none"  /></p>
+                      </div>
+        
+                      <div className="space-y-3">
+                        <label className="font-semibold">Extra info</label>
+                        <input type="text" name="extra_info" id="" value={formData.extra_info} onChange={handleChange} className="border w-full h-[7vh]" />
+                      </div>
+        
+                      <div className="space-y-3">
+                      
+                         <label className="font-semibold">Select Image</label>
+                      <input
+                        type="file" name="images" multiple   id="" onChange={handleChangePic}  className=""/>
+                         </div>
+        
+        
+                <div className="space-y-5">
+                  <div className="space-x-2">
+                  <input
+                      type="checkbox"
+                      name="venue"
+                      value="online"
+                      id="online"
+                      onChange={handleChange}
+                    />
+                    <label htmlFor="online">Online</label>
+                  </div>
+        
+                  <div className="space-x-2">
+                  <input
+                      type="checkbox"
+                      name="venue"
+                      value="onsite"
+                      id="onsite"
+                      onChange={handleChange}
+                    />
+                    <label htmlFor="onsite">Onsite</label>
+                  </div>
+                  </div>
+        
+                  <div>
+                    <p className="font-semibold">Select program</p>
+                    <div className="flex flex-row gap-4 flex-wrap">
+                    {registration.map((register) => (
+                      <div >
+                        <p onClick={() => handleSelectProgram(register.id)} className={`mt-2 rounded-md px-4 py-2 text-white cursor-pointer ${
+                      selectedPrograms.includes(register.id) ? "bg-blue-500" : "bg-green-500"
+                    }`}>{register.name}</p>
+                      </div>
+                    ))
+        
+                    }
+                    </div>
+                    
+                  </div>
+        
+                  <div className="flex justify-between">
+                  <button type="submit"   className="mt-4 p-3 bg-blue-500 text-white rounded"  > {loading.update ? <BeatLoader size={10} color='#ffff' /> : "Add Course"} </button>
+                  <button className="mt-2 text-red-500"  onClick={openandCloseUpdate} >Cancel </button>
+                  </div>
+        
+                  <div className="flex justify-center text-xl">
+                      {message ? <p>{message}</p> : "" }
+                      </div>
+        
+                    </form>
+                  </div>
+                )}
+        
+                {/*Update course form */}
 
 {!isNewCourseOpen && (
 
@@ -587,6 +701,7 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex justify-end gap-5 items-end">
+                  <button title="Update Course" onClick={ () => handleUpdateButton(program.id)}> <Pencil /> </button>
                 <button onClick={() => handleCourseOpenOrClose(program.id)}  title={  isCourseOpen[program.id]   ? "Close Course"  : "Open Course"  }>
                         {isCourseOpen[program.id] ? (
                                 <span role="img" className='text-2xl' aria-label="Open Lock">
@@ -597,8 +712,8 @@ export default function Dashboard() {
                                   🔒
                                 </span>
                               )}
-                              </button>
-                  <button className="bg-red-800 px-3 py-1 rounded-md text-white" onClick={ () => handleDelete(program.id)}>{loading.delete[program.id] ? <BeatLoader size={5} /> : <Trash2 />}</button>
+                </button>
+                  <button title="Delete course" className="bg-red-800 px-3 py-1 rounded-md text-white" onClick={ () => handleDelete(program.id)}>{loading.delete[program.id] ? <BeatLoader size={5} /> : <Trash2 />}</button>
                 </div>
 
                 {Delmessage[program.id] && (
