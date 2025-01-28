@@ -341,50 +341,7 @@ export default function Dashboard() {
       setLoading((prev) => ({ ...prev, add: false }));
     }
   };
-  //   try {
-  //     setLoading((prev) => ({
-  //       ...prev,
-  //       delete: { ...prev.delete, [id]: true },
-  //     }));
-    
-  //     const response = await fetch(
-  //       `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/`,
-  //       {
-  //         method: "DELETE",
-  //         headers: {
-  //           "Content-Type": "application/json", 
-  //           Authorization: `${token}`, 
-  //         },
-  //       }
-  //     );
-  
-  //     if (response.ok) {
-  //       const data = await response.json();
-  //       console.log("Course deleted:", data);
-  
-  //       setDelMessage((prev) => ({
-  //         ...prev,
-  //         [id]: "Course deleted successfully!",
-  //       }));
-  
-  //       const timer = setTimeout(() => {
-  //         window.location.href = "/Web3Lagos/Dashboard";
-  //       }, 2000);
-  //       return () => clearTimeout(timer);
-  //     } else {
-  //       const data = await response.json();
-  //       throw new Error(data.message || "Failed to delete course");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error deleting the course:", error);
-  //     setMessage("Error deleting the Course");
-  //   } finally {
-  //     setLoading((prev) => ({
-  //       ...prev,
-  //       delete: { ...prev.delete, [id]: false },
-  //     }));
-  //     }
-  // };
+ 
 
   const openandCloseUpdate = () => {
     setIsUpdateOpen((prev) => !prev);
