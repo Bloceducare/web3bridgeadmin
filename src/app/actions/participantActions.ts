@@ -23,6 +23,7 @@ export async function getParticipants() {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
+        // You did not provide token example: get the token from the local storage and use it it to authorize the request
       },
       next: { revalidate: 60 }
     });
@@ -47,6 +48,7 @@ export async function updateParticipant(participant: z.infer<typeof ParticipantS
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
+        // You did not provide token example: get the token from the local storage and use it it to authorize the request
       },
       body: JSON.stringify(validatedData)
     });
@@ -69,6 +71,7 @@ export async function deleteParticipant(id: string) {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json'
+        // You did not provide token example: get the token from the local storage and use it it to authorize the request
       }
     });
 
