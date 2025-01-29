@@ -1,8 +1,7 @@
-'use server';
+"use client";
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { useEffect, useState } from 'react';
 
 const API_BASE_URL ="https://web3bridgewebsitebackend.onrender.com"
 
@@ -16,11 +15,8 @@ const ParticipantSchema = z.object({
   attendance: z.number()
 });
 
-const [token, setToken] = useState("")
-useEffect(() => {
+
   const token = localStorage.getItem("token") || "";
-  setToken(token)
-}, []);
 
 
 export async function getParticipants() {
