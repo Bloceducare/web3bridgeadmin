@@ -51,7 +51,7 @@ function Page() {
   };
 
   return (
-    <div className="w-full overflow-hidden h-full p-4">
+    <div className="w-full overflow-hidden h-[200vh] p-4">
       <div className='text-2xl font-semibold'>
         <h1>Send Emails</h1>
       </div>

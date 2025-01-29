@@ -2,6 +2,8 @@
 
 import React, {useEffect, useState} from 'react'
 import { ScaleLoader, BeatLoader } from 'react-spinners'
+import { Trash2 } from 'lucide-react'
+import { handledeleteProgram, fetchOpenRegistrationData } from '@/hooks/useUpdateProgram';
 
 interface Program {
     id: number,
@@ -32,6 +34,8 @@ function page() {
         const [isRegistratinOpen, setIsRegistrationOpen] = useState<{ [key: number]: boolean }>({});
         const [token, setToken] = useState("")
         const [courses, setCourses] = useState<Course[]>([]);
+        const [Delmessage, setDelMessage] = useState<Record<string, string>>({});
+        
                         
           
           const [error, setError] = useState<string | null>(null);
@@ -48,58 +52,13 @@ function page() {
                 });
 
 
-          useEffect(() => {
-            const token = localStorage.getItem("token") || "";
-            setToken(token)
+    useEffect(() => {
+          const token = localStorage.getItem("token") || "";
+          setToken(token)
+          fetchOpenRegistrationData(token,  setRegistration, setIsRegistrationOpen, setError, setLoading);
+        }, []);
+                
 
-            setLoading((prev) => ({ ...prev, other: true }));
-
-        
-            const fetchPrograms = async () => {
-              if (!token) {
-                setError("You are not logged in.");
-                return;
-              }
-        
-              try {
-                const response = await fetch(
-                  `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/all_opened/`,
-                  {
-                    method: "GET",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${token}`,
-                    },
-                  }
-                );
-        
-                const data = await response.json(); 
-        
-                if (response.ok) {
-                  setRegistration(data.data); 
-                  const initialState = data.data.reduce(
-                    (acc: { [key: number]: boolean }, register: { id: number; is_open: boolean }) => {
-                      acc[register.id] = register.is_open;
-                      return acc;
-                    },
-                    {}
-                  );
-        
-                  setIsRegistrationOpen(initialState);
-                } else {
-                  setError(`Failed to fetch programs: ${data.message || "Unknown error"}`);
-                }
-              } catch (error) {
-                setError("Error fetching data");
-                console.error("Error fetching data:", error);
-              } finally {
-                setLoading((prev) => ({ ...prev, other: false }));
-
-              }
-            };
-        
-            fetchPrograms();
-          }, []);
 
           const handleCourse = async (id: number[], num: number) => {
             console.log("Fetching courses for IDs:", id);
@@ -177,6 +136,41 @@ function page() {
     
     
           }
+           const handleDelete = async (id: number) => {
+                 setLoading((prev) => ({
+                   ...prev,
+                   delete: {
+                     ...prev.delete,
+                     [id]: true, 
+                   },
+                 }));
+                 try {
+                   await handledeleteProgram(id, token, (message: string) => {
+                     setDelMessage((prev) => ({
+                       ...prev,
+                       [id]: message,
+                     }));
+                   });
+               
+                   if (token) {
+                     fetchOpenRegistrationData(token,  setRegistration, setIsRegistrationOpen, setError);
+                   }
+                 } catch (error) {
+                   console.error("Error deleting the course:", error);
+                   setDelMessage((prev) => ({
+                     ...prev,
+                     [id]: "An error occurred while deleting the course.",
+                   }));
+                 } finally {
+                   setLoading((prev) => ({
+                     ...prev,
+                     delete: {
+                       ...prev.delete,
+                       [id]: false, // Set loading to false for the specific course
+                     },
+                   }));
+                 }
+               };
 
   if (loading.other) {
     return (
@@ -196,7 +190,7 @@ function page() {
         
     
   return (
-    <div className="w-full overflow-hidden h-full p-4 bg-green-200">
+    <div className="w-full overflow-hidden h-[200vh] p-4 bg-green-200">
         <div className='mt-5'>
         <h1 className='text-3xl font-bold'>Opened Programs</h1>
         {registration.length === 0 ? (
@@ -224,9 +218,17 @@ function page() {
                             </span>
                           )}
                           </button>
+                          <button onClick={() => handleDelete(register.id)}>{loading.delete[register.id] ? <BeatLoader size={5} />: <Trash2 /> }</button>
+
 
                     </div>
                         </div>
+
+                        {Delmessage[register.id] && (
+                            <div>
+                                <p className="text-center ">{Delmessage[register.id]}</p>
+                            </div>
+                            )}
                  </div>         
             ))}
         </div>

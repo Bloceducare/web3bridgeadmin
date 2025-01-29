@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { useEffect, useState } from 'react';
 
 const API_BASE_URL ="https://web3bridgewebsitebackend.onrender.com"
 
@@ -15,15 +16,24 @@ const ParticipantSchema = z.object({
   attendance: z.number()
 });
 
+const [token, setToken] = useState("")
+useEffect(() => {
+  const token = localStorage.getItem("token") || "";
+  setToken(token)
+}, []);
+
+
 export async function getParticipants() {
   const url = `${API_BASE_URL}/cohort/participant/all/`;
+  
 
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
-      },
+        'Content-Type': 'application/json',
+          "Authorization": `${token}`, 
+        },
       next: { revalidate: 60 }
     });
 
@@ -46,8 +56,9 @@ export async function updateParticipant(participant: z.infer<typeof ParticipantS
     const response = await fetch(`${API_BASE_URL}/cohort/participant/${validatedData.id}/`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json'
-      },
+        'Content-Type': 'application/json',
+          "Authorization": `${token}`, 
+        },
       body: JSON.stringify(validatedData)
     });
 
@@ -68,8 +79,9 @@ export async function deleteParticipant(id: string) {
     const response = await fetch(`${API_BASE_URL}/api/v2/cohort/participant/${id}/`, {
       method: 'DELETE',
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+          "Authorization": `${token}`, 
+        },
     });
 
     if (!response.ok) {

@@ -83,7 +83,7 @@ const NavBar = () => {
                 textStyle="text-[#d8d8d8] hover:text-white"
               />
               <NavItems
-                href="#"
+                href="/Web3Lagos/Setting"
                 src={setting}
                 name="Settings"
                 linkStyle="hover:bg-[#242529]"

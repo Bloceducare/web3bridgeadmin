@@ -241,8 +241,16 @@ const Login = () => {
               {loading ? <ScaleLoader color="#ffff" /> : "LogIn"}
             </button>
             <div className="flex justify-center">
-              {message ? <p>{message}</p> : ""}
-            </div>
+            {message && (
+                  <p
+                    className={`mt-4 text-center text-sm ${
+                      errors ? "text-red-500" : "text-green-500"
+                    }`}
+                  >
+                    {message}
+                  </p>
+                )}
+                    </div>
           </div>
         </form>
       </div>

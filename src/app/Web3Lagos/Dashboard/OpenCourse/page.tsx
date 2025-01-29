@@ -1,6 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { ScaleLoader, BeatLoader } from "react-spinners";
+import { Pencil, Trash2 } from "lucide-react";
+import { handleUpdateCourse, handleUpdateCourseButton, handleDeleteCourse, fetchPrograms } from "@/hooks/useUpdateCourse";
 
 
 interface Image {
@@ -73,10 +75,12 @@ const initialFormErrors: FormErrors = {};
 
 export default function OpenCourse() {
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [isCourseOpen, setIsCourseOpen] = useState< {[key: number]: boolean}>({})
   const [message, setMessage] = useState("");
   const [clickedProgram, setClickedPrograms] = useState<currentProgram[]>([])
    const [formData, setFormData] = useState<FormData>(initialFormState)
    const [errors, setErrors] = useState<FormErrors>(initialFormErrors);
+   const [Delmessage, setDelMessage] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdateOpen, setIsUpdateOpen] = useState<boolean>(false); 
@@ -204,7 +208,6 @@ export default function OpenCourse() {
     }
   };
 
-
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -272,108 +275,65 @@ export default function OpenCourse() {
   
 
 
-  const handleUpdate =  async( id: number ) => {
-
-    console.log( "This is the Updated clicked id", id)
-
-   openandCloseUpdate()
-
+  const handleDelete = async (id: number) => {
+    setLoadings((prev) => ({
+      ...prev,
+      delete: {
+        ...prev.delete,
+        [id]: true, 
+      },
+    }));
     try {
-      const getCurrentClickedData = await fetch (`https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/`,  
-      {
-        method: "GET",
-        headers: {
-          Authorization: `${token}`,
-        }
-      })
-
-      const data = await getCurrentClickedData.json()
-
-      if(getCurrentClickedData.ok) {
-        setClickedPrograms(data.data)
-        const program = data.data 
-
-        setFormData({
-          id: program.id,
-          name: program.name || "",
-          description: program.description || "",
-          venue: (program.venue || []) as ("online" | "onsite")[], // Validate venue type
-          extra_info: program.extra_info || "",
-          images: [], // Convert program.images (URLs) to File[] if necessary
-          registration: [],
-        });
-       
-      }
-
-
-    } catch (error) {
-      console.log(error)
-    }
-
-  }
-
-  const handleUpdateCourse = async(id: number |  null, e: React.FormEvent) => {
-    e.preventDefault()
-
-    console.log("This s the id", id)
-    setErrors(initialFormErrors);
-    setLoadings((prev) => ({ ...prev, add: true }));
+      await handleDeleteCourse(id, token, (message: string) => {
+        setDelMessage((prev) => ({
+          ...prev,
+          [id]: message,
+        }));
+      });
   
-    const formDataToSend = new FormData();
-  
-    formDataToSend.append("name", formData.name);
-    formDataToSend.append("description", formData.description);
-    formDataToSend.append("extra_info", formData.extra_info);
-  
-    formDataToSend.append("venue", JSON.stringify(formData.venue));
-    formData.registration.forEach((registerId) => {
-      formDataToSend.append("registration", registerId.toString()); 
-    });
-  
-    formData.images.forEach((file) => {
-      formDataToSend.append("images", file);
-    });
-
-    console.log("FormData being sent:", [formDataToSend]);
-
-    try {
-      const response = await fetch(
-        `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `${token}`,
-          },
-          body: formDataToSend, 
-        }
-      );
-  
-      const data = await response.json();
-  
-      if (response.ok) {
-        setMessage("Course Updated successfully");
-        console.log("course created");
-        setFormData(initialFormState);
-        const timer = setTimeout(() => {
-          openandCloseUpdate();
-          window.location.href="/Web3Lagos/Dashboard/OpenCourse"
-        }, 3000);
-      } else {
-        setMessage(
-          `Unable to Update Course: ${data.message || "Please try again later"}`
-        );
+      if (token) {
+        fetchPrograms(token,  setPrograms, setIsCourseOpen, setError);
       }
     } catch (error) {
-      console.log("Network error:", error);
-      setMessage("Network error. Please try again later");
+      console.error("Error deleting the course:", error);
+      setDelMessage((prev) => ({
+        ...prev,
+        [id]: "An error occurred while deleting the course.",
+      }));
     } finally {
-      setLoadings((prev) => ({ ...prev, add: false }));
+      setLoadings((prev) => ({
+        ...prev,
+        delete: {
+          ...prev.delete,
+          [id]: false, // Set loading to false for the specific course
+        },
+      }));
     }
+  };
 
+  const handleUpdateButton = (id: number) => { 
+    handleUpdateCourseButton(id, token, formData, setFormData, setClickedPrograms, openandCloseUpdate)
   }
+    const refresh = "/Web3Lagos/Dashboard/OpenCourse"
+  
+    const updateCourse = (id: number) => {
+      handleUpdateCourse(id, token, refresh, formData, setMessage, setFormData, setClickedPrograms, openandCloseUpdate)
+    } 
+
+    const handleUpdateSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoadings((prev) => ({ ...prev, add: true }));
+      try {
+        if (formData.id !== null) {
+          updateCourse(formData.id);
+        }
+      } catch (error) {
+        setLoadings((prev) => ({ ...prev, add: false }));
+      }    
+    };
 
   return (
-    <div className="bg-green-200 w-full h-full p-10">
+    <div className="bg-green-200 w-full  h-[200vh] p-10">
       <div className="space-y-10">
         <h1 className="text-center text-3xl font-bold">{isUpdateOpen? "Update Courses" : "Courses opened"}</h1>
 
@@ -382,7 +342,7 @@ export default function OpenCourse() {
             {isUpdateOpen && (
           <div className="bg-white p-6 rounded-md shadow-md mt-2 space-x-4">
             <h2 className="text-2xl font-semibold">Add New Course</h2>
-            <form className="space-y-6 mt-3" onSubmit={(e) => handleUpdateCourse(formData.id, e)}>
+            <form className="space-y-6 mt-3" onSubmit={handleUpdateSubmit}>
               <div className="space-y-2">
                 <label className="font-semibold">Name</label>
                 <input
@@ -531,9 +491,16 @@ export default function OpenCourse() {
                         ))}
                       </div>
 
-                      <div>
-                      <button className="bg-green-700 px-3 py-1 rounded-md text-white" onClick={ () => handleUpdate(program.id)}>Update</button>
-                      </div>
+                      <div className="flex justify-end gap-5 items-end">
+                  <button title="Update Course" onClick={ () => handleUpdateButton(program.id)}> <Pencil /> </button>
+                  <button title="Delete course" className="bg-red-800 px-3 py-1 rounded-md text-white" onClick={ () => handleDelete(program.id)}>{loadings.delete[program.id] ? <BeatLoader size={5} /> : <Trash2 />}</button>
+                </div>
+
+                {Delmessage[program.id] && (
+          <div>
+            <p className="text-center ">{Delmessage[program.id]}</p>
+          </div>
+        )}
                     </div>
                   ))}
                 </div>
