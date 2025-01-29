@@ -190,7 +190,7 @@ function page() {
         
     
   return (
-    <div className="w-full overflow-hidden h-full p-4 bg-green-200">
+    <div className="w-full overflow-hidden h-[200vh] p-4 bg-green-200">
         <div className='mt-5'>
         <h1 className='text-3xl font-bold'>Opened Programs</h1>
         {registration.length === 0 ? (

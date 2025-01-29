@@ -410,7 +410,7 @@ export default function Dashboard() {
         };
 
   return (
-    <div className="bg-green-200 w-full h-full p-10">
+    <div className="bg-green-200 w-full  h-[200vh] p-10">
 
 
       <div className="space-y-10">

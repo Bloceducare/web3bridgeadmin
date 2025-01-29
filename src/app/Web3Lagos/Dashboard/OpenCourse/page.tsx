@@ -208,39 +208,6 @@ export default function OpenCourse() {
     }
   };
 
-  const handleCourseOpenOrClose = async (id: number) => { 
-
-    try {
-      const isCurrentlyOpen = isCourseOpen[id];
-      const enpoints = isCurrentlyOpen ? `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/close_course/` : `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/open_course/`
-
-      const response = await fetch(enpoints, {
-        method: "PUT",
-        headers: {
-          Authorization: `${token}`,
-          "Content-Type": "application/json", 
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status} - ${response.statusText}`);
-      } else {
-        const data = await response.json();
-        setIsCourseOpen((prevState) => ({
-          ...prevState,
-          [id]: data.data.is_open, 
-        }));
-      }
-
-     
-    } catch (error) {
-      console.log(error)
-    }
-
-
-  }
-
-
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -366,7 +333,7 @@ export default function OpenCourse() {
     };
 
   return (
-    <div className="bg-green-200 w-full h-full p-10">
+    <div className="bg-green-200 w-full  h-[200vh] p-10">
       <div className="space-y-10">
         <h1 className="text-center text-3xl font-bold">{isUpdateOpen? "Update Courses" : "Courses opened"}</h1>
 
@@ -526,17 +493,6 @@ export default function OpenCourse() {
 
                       <div className="flex justify-end gap-5 items-end">
                   <button title="Update Course" onClick={ () => handleUpdateButton(program.id)}> <Pencil /> </button>
-                <button onClick={() => handleCourseOpenOrClose(program.id)}  title={  isCourseOpen[program.id]   ? "Close Course"  : "Open Course"  }>
-                        {isCourseOpen[program.id] ? (
-                                <span role="img" className='text-2xl' aria-label="Open Lock">
-                                  🔓
-                                </span>
-                              ) : (
-                                <span role="img" className='text-2xl' aria-label="Closed Lock">
-                                  🔒
-                                </span>
-                              )}
-                </button>
                   <button title="Delete course" className="bg-red-800 px-3 py-1 rounded-md text-white" onClick={ () => handleDelete(program.id)}>{loadings.delete[program.id] ? <BeatLoader size={5} /> : <Trash2 />}</button>
                 </div>
 

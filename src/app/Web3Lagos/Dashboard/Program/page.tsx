@@ -275,7 +275,7 @@ const handleChange = (
       }
 
   return (
-    <div className="w-full overflow-hidden h-full p-4 bg-green-200">
+    <div className="w-full overflow-hidden h-[200vh] p-4 bg-green-200">
         <div className='flex justify-between mt-5'>
             <h1 className='text-3xl font-bold'>{isNewProgramOpen ? "Create New Program" : "All Program"}</h1>
 
