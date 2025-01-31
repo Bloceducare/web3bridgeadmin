@@ -3,12 +3,12 @@ import { getParticipants } from "@/app/actions/participantActions";
 import { ParticipantsTable } from "./ParticipantTable";
 
 export default async function ParticipantsPage() {
-  const participants = await getParticipants();
+  // const participants = await getParticipants();
 
   return (
     <div className="container mx-auto p-4">
       {/* <h1 className="text-2xl font-bold mb-4">Participants</h1> */}
-      <ParticipantsTable data={participants} />
+      {/* <ParticipantsTable data={participants} /> */}
     </div>
   );
 }
