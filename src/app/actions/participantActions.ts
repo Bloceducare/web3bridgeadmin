@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-const API_BASE_URL ="https://web3bridgewebsitebackend.onrender.com"
+const API_BASE_URL ="https://web3bridgewebsitebackend.onrender.com/api/v2/"
 
 const ParticipantSchema = z.object({
   id: z.string(),
