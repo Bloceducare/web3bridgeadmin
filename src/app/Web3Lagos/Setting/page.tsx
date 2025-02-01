@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { fetchAllDiscount, deleteCode, generateDiscountCode } from '@/hooks/discount'
+import { fetchAllDiscount, deleteCode, generateDiscountCode, validateDiscountCode } from '@/hooks/discount'
 import { motion, AnimatePresence } from "framer-motion"
 import { Trash2 } from 'lucide-react'
 import { BeatLoader } from 'react-spinners'
@@ -28,9 +28,13 @@ function page() {
   const [error, setError] = useState<string | null>(null);
   const [showAllDiscount, setShowAllDiscount] = useState(false);
   const [showCreateDiscount, setShowCreateDiscount] = useState(false);
+  const [validate, setValidateDiscount] = useState(false)
   const [Delmessage, setDelMessage] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState<number>(0); 
+  const [code, setCode] = useState("")
   const [message, setMessage] = useState<string>(""); 
+  const [Valmessage, setValMessage] = useState<string>(""); 
+
   const [OpenOverlay, setOpenOverlay] = useState(false);
   const [token, setToken] = useState("")
   const [loading, setLoading] = useState<{
@@ -38,12 +42,14 @@ function page() {
           other: boolean; 
           add: boolean;
           new: boolean;
+          validate: boolean,
           view:{ [key: number]: boolean };
         }>({
           delete: {}, 
           other: false,
           add: false,
           new: false,
+          validate: false,
           view: {}
         });
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,14 +95,38 @@ function page() {
       await generateDiscountCode(quantity, token, setNewDiscountCode, setMessage, setLoading);
     };
 
-    const filteredDiscounts = discountCodes.filter((discount) =>  discount.code.toLowerCase().includes(searchQuery.toLowerCase())  );
-    const toggleAllDiscount = () => {
+    const handleValidateDiscount = async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+  
+      if (!code.trim()) {
+        setValMessage("Please enter a Code");
+        return;
+      }
+  
+      await validateDiscountCode(code, token,  setValMessage, setLoading);
+    };
+
+    const [filterOption, setFilterOption] = useState("all"); 
+    const filteredDiscounts = discountCodes.filter((discount) => {
+      const matchesSearch = discount.code.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilter =
+        filterOption === "all" ||
+        (filterOption === "used" && discount.is_used) ||
+        (filterOption === "unused" && !discount.is_used);
+    
+      return matchesSearch && matchesFilter;
+    });    const toggleAllDiscount = () => {
       setShowAllDiscount((prev) => !prev);
       setOpenOverlay((prev) => !prev);
     };
     const toggleCreateDiscount = () => {
     setShowCreateDiscount((prev) => !prev);
    setOpenOverlay((prev) => !prev);
+    }
+
+    const toggleValidateDiscount = () => {
+      setValidateDiscount((prev) => !prev)
+      setOpenOverlay((prev) => !prev);
     }
                    
   return (
@@ -112,7 +142,7 @@ function page() {
 
       <section className='mt-5'>
           <div className='flex gap-5 items-center'>
-                  <button className='border px-4 py-3 bg-white rounded-lg'>Verify Discount</button>
+                  <button  className="border px-4 py-3 bg-white rounded-lg hover:bg-gray-100 transition"  onClick={toggleValidateDiscount}>Verify Discount</button>
                   <button   onClick={toggleAllDiscount} className="border px-4 py-3 bg-white rounded-lg hover:bg-gray-100 transition"  >   All Discount    </button>
                   <button   className="border px-4 py-3 bg-white rounded-lg hover:bg-gray-100 transition" onClick={toggleCreateDiscount}>Create Discount code</button>
           </div>
@@ -137,7 +167,7 @@ function page() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 100 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
-                className="fixed top-[10%]  transform -translate-x-1/2 w-full max-w-3xl h-[700px] bg-white p-6 rounded-lg shadow-lg z-20"
+                className="fixed top-[10%]  transform -translate-x-1/2 w-full max-w-3xl h-[700px] bg-white p-6 rounded-lg shadow-lg z-20 overflow-y-auto"
               >
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-semibold">All Discount Codes</h2>
@@ -158,8 +188,18 @@ function page() {
                   className="w-full p-2 border border-gray-300 rounded-md mb-4"
                 />
 
+                  <select
+                      value={filterOption}
+                      onChange={(e) => setFilterOption(e.target.value)}
+                      className="p-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="all">All</option>
+                      <option value="used">Used</option>
+                      <option value="unused">Unused</option>
+                    </select>
+
                 {/* Discount Codes List */}
-                <div className="max-h-[70vh] overflow-y-auto space-y-3">
+                <div className="max-h-[70vh]  space-y-3 mt-4">
                   {filteredDiscounts.length > 0 ? (
                     filteredDiscounts.map((discount) => (
                       <div
@@ -253,6 +293,47 @@ function page() {
                 </div>
 
 
+
+                </motion.div>
+            )}
+
+
+
+            {/* Validate discount */}
+            {validate  && (
+                <motion.div
+                initial={{ opacity: 0, y: 100 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 100 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="fixed top-[10%]  transform -translate-x-1/2 w-full max-w-3xl h-[700px] bg-white p-6 rounded-lg shadow-lg z-20"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold">Validate codes</h2>
+                  <button
+                    onClick={toggleValidateDiscount}
+                    className="text-gray-600 hover:text-red-500"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Discount Codes List */}
+                <h2>Validate your code</h2>
+                <form className='mt-5' onSubmit={handleValidateDiscount}>
+                <div className='flex flex-col gap-2 text-lg font-semibold'>
+                    <label>Discount code</label>
+                  <input type="text" className='border p-2 outline-none' onChange={(e) => setCode((e.target.value))} />
+                </div>
+
+                <button type="submit" className='bg-black text-white px-3 py-2 rounded-md mt-3'>{loading.new ? "Validating..." : "Validate"} </button>
+                </form>
+
+                <div>
+                  {Valmessage &&(
+                    <p>{Valmessage}</p>
+                  )}
+                </div>
 
                 </motion.div>
             )}
