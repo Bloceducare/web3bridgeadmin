@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { fetchAllDiscount, deleteCode } from '@/hooks/discount'
+import { fetchAllDiscount, deleteCode, generateDiscountCode } from '@/hooks/discount'
 import { motion, AnimatePresence } from "framer-motion"
 import { Trash2 } from 'lucide-react'
 import { BeatLoader } from 'react-spinners'
@@ -14,24 +14,39 @@ interface DiscountCodes {
  claimant: string
 }
 
+interface newCode {
+  id: number,
+  code: string,
+  is_used: boolean,
+  validity: string,
+  claimant: string
+}
+
 function page() {
-    const [discountCodes, setDiscountCodes] = useState<DiscountCodes[]>([])
-    const [error, setError] = useState<string | null>(null);
-    const [showAllDiscount, setShowAllDiscount] = useState(false);
-        const [Delmessage, setDelMessage] = useState<Record<string, string>>({});
-    const [token, setToken] = useState("")
-     const [loading, setLoading] = useState<{
-                      delete: { [key: number]: boolean }; 
-                      other: boolean; 
-                      add: boolean;
-                      view:{ [key: number]: boolean };
-                    }>({
-                      delete: {}, 
-                      other: false,
-                      add: false,
-                      view: {}
-                    });
-                    const [searchQuery, setSearchQuery] = useState("");
+  const [discountCodes, setDiscountCodes] = useState<DiscountCodes[]>([])
+  const [newDiscountCode, setNewDiscountCode] = useState<newCode[]>([])
+  const [error, setError] = useState<string | null>(null);
+  const [showAllDiscount, setShowAllDiscount] = useState(false);
+  const [showCreateDiscount, setShowCreateDiscount] = useState(false);
+  const [Delmessage, setDelMessage] = useState<Record<string, string>>({});
+  const [quantity, setQuantity] = useState<number>(0); 
+  const [message, setMessage] = useState<string>(""); 
+  const [OpenOverlay, setOpenOverlay] = useState(false);
+  const [token, setToken] = useState("")
+  const [loading, setLoading] = useState<{
+          delete: { [key: number]: boolean }; 
+          other: boolean; 
+          add: boolean;
+          new: boolean;
+          view:{ [key: number]: boolean };
+        }>({
+          delete: {}, 
+          other: false,
+          add: false,
+          new: false,
+          view: {}
+        });
+  const [searchQuery, setSearchQuery] = useState("");
 
 
      useEffect(() => {
@@ -41,81 +56,76 @@ function page() {
    }, []);
 
      const handleDelete = async (id: number) => {
-                    setLoading((prev) => ({
-                      ...prev,
-                      delete: {
-                        ...prev.delete,
-                        [id]: true, 
-                      },
-                    }));
-                    try {
-                      await deleteCode(id, token, (message: string) => {
-                        setDelMessage((prev) => ({
-                          ...prev,
-                          [id]: message,
-                        }));
-                      });
-                  
-                      if (token) {
-                        fetchAllDiscount(token,  setDiscountCodes, setError, setLoading);
-                      }
-                    } catch (error) {
-                      console.error("Error deleting the course:", error);
-                      setDelMessage((prev) => ({
-                        ...prev,
-                        [id]: "An error occurred while deleting the course.",
-                      }));
-                    } finally {
-                      setLoading((prev) => ({
-                        ...prev,
-                        delete: {
-                          ...prev.delete,
-                          [id]: false, 
-                        },
-                      }));
-                    }
-                  };
+      setLoading((prev) => ({  ...prev,  delete: {...prev.delete,  [id]: true,  }, }));
+      try {
+        await deleteCode(id, token, (message: string) => {
+          setDelMessage((prev) => ({
+            ...prev,
+            [id]: message,
+          }));
+        });
+    
+        if (token) {
+          fetchAllDiscount(token,  setDiscountCodes, setError, setLoading);
+        }
+      } catch (error) {
+        console.error("Error deleting the course:", error);
+        setDelMessage((prev) => ({
+          ...prev,
+          [id]: "An error occurred while deleting the course.",
+        }));
+      } finally {
+        setLoading((prev) => ({...prev, delete: {...prev.delete, [id]: false, }, }));
+      }
+    };
+    const handleGenerateDiscount = async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+  
+      if (quantity < 1) {
+        setMessage("Please enter a valid quantity (minimum 1).");
+        return;
+      }
+  
+      await generateDiscountCode(quantity, token, setNewDiscountCode, setMessage, setLoading);
+    };
 
-   const filteredDiscounts = discountCodes.filter(
-    (discount) =>
-      discount.code.toLowerCase().includes(searchQuery.toLowerCase())  );
+    const filteredDiscounts = discountCodes.filter((discount) =>  discount.code.toLowerCase().includes(searchQuery.toLowerCase())  );
+    const toggleAllDiscount = () => {
+      setShowAllDiscount((prev) => !prev);
+      setOpenOverlay((prev) => !prev);
+    };
+    const toggleCreateDiscount = () => {
+    setShowCreateDiscount((prev) => !prev);
+   setOpenOverlay((prev) => !prev);
+    }
                    
-
-
-
   return (
     <div className="bg-green-200 w-full  h-[200vh] p-10">
 
-        <section>
-            <div className="flex justify-between items-center mt-2">
-                <div className="flex items-center">
-                    <h1 className="text-2xl font-bold">Settings</h1>
-                </div>
-            </div>
+      <section>
+          <div className="flex justify-between items-center mt-2">
+              <div className="flex items-center">
+                  <h1 className="text-2xl font-bold">Settings</h1>
+              </div>
+          </div>
 
 
-            <section className='mt-5'>
-                <div className='flex gap-5 items-center'>
-                    <button className='border px-4 py-3 bg-white rounded-lg'>Verify Discount</button>
-
-                    <button 
-              onClick={() => setShowAllDiscount(true)}
-              className="border px-4 py-3 bg-white rounded-lg hover:bg-gray-100 transition"
-            >
-              All Discount
-            </button>
-                    <button className='border px-4 py-3 bg-white rounded-lg'>Create Discount code</button>
-                </div>
+      <section className='mt-5'>
+          <div className='flex gap-5 items-center'>
+                  <button className='border px-4 py-3 bg-white rounded-lg'>Verify Discount</button>
+                  <button   onClick={toggleAllDiscount} className="border px-4 py-3 bg-white rounded-lg hover:bg-gray-100 transition"  >   All Discount    </button>
+                  <button   className="border px-4 py-3 bg-white rounded-lg hover:bg-gray-100 transition" onClick={toggleCreateDiscount}>Create Discount code</button>
+          </div>
 
 
 
-                {/* Overlay */}
-                {showAllDiscount && (
-                        <div
-                        className="fixed inset-0 bg-black bg-opacity-50 z-10"
-                        onClick={() => setShowAllDiscount(false)}
-                        />
-                    )}
+          {/* Overlay */}
+          {OpenOverlay && (
+                  <div
+                  className="fixed inset-0 bg-black bg-opacity-50 z-10"
+                  onClick={() => setShowAllDiscount(false)}
+                  />
+              )}
 
 
                  {/* Discount Modal */}
@@ -132,7 +142,7 @@ function page() {
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-semibold">All Discount Codes</h2>
                   <button
-                    onClick={() => setShowAllDiscount(false)}
+                    onClick={toggleAllDiscount}
                     className="text-gray-600 hover:text-red-500"
                   >
                     ✕
@@ -186,8 +196,71 @@ function page() {
                 </div>
               </motion.div>
             )}
+
+
+
+            {/* Create Discount Modal */}
+            {showCreateDiscount && (
+                <motion.div
+                initial={{ opacity: 0, y: 100 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 100 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="fixed top-[10%]  transform -translate-x-1/2 w-full max-w-3xl h-[700px] bg-white p-6 rounded-lg shadow-lg z-20"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold">Generate new codes</h2>
+                  <button
+                    onClick={toggleCreateDiscount}
+                    className="text-gray-600 hover:text-red-500"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Discount Codes List */}
+                <h2>Generate discount by specifying how many you want (1, 2, 3.....)</h2>
+                <form className='mt-5' onSubmit={handleGenerateDiscount}>
+                <div className='flex flex-col gap-2 text-lg font-semibold'>
+                    <label>Number of discount codes</label>
+                  <input type="number" className='border p-2 outline-none' onChange={(e) => setQuantity(Number(e.target.value))} min={1} />
+                </div>
+
+                <button type="submit" className='bg-black text-white px-3 py-2 rounded-md mt-3'>{loading.new ? "Generating..." : "Generate"} </button>
+                </form>
+
+                <div className="max-h-[50vh] overflow-y-auto space-y-3">
+                  {newDiscountCode.length > 0 ? (
+                    newDiscountCode.map((discount) =>(
+                      <div key={discount.id}   className="p-3 border rounded-lg bg-gray-100 space-y-2 mt-2">
+                           <p>
+                          <strong>Code:</strong> {discount.code}
+                        </p>
+                        <p>
+                          <strong>Used:</strong> {discount.is_used ? "Yes" : "No"}
+                        </p>
+                        <p>
+                          <strong>Validity:</strong> {discount.validity}
+                        </p>
+                        <p>
+                          <strong>Claimant:</strong> {discount.claimant}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 mt-5">{error ? "Unable to create Discount code" : "Create Discount code"}</p>
+                  ) }
+                </div>
+
+
+
+                </motion.div>
+            )}
           </AnimatePresence>
+
             </section>
+
+
         </section>
 
 

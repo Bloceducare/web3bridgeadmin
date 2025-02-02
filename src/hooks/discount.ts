@@ -1,3 +1,4 @@
+
 export const fetchAllDiscount = async (
     token: string, 
     setDiscountCodes: (data: any) => void, 
@@ -81,3 +82,44 @@ export const deleteCode = async ( id: number, token: string,
           } 
 
 }
+
+
+export const generateDiscountCode = async (
+  quantity: number, 
+  token: string, 
+  setNewDiscountCodes: (data: any) => void, 
+  setMessage: (data: string) => void,
+  setLoading?: (value: (prev: any) => any) => void 
+) => {
+
+  if (setLoading) {
+    setLoading((prev: any) => ({ ...prev, new: true }));
+  }
+
+  try {
+    const response = await fetch(`https://web3bridgewebsitebackend.onrender.com/api/v2/payment/discount/generate/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `${token}`, 
+      },
+      body: JSON.stringify({ quantity }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setNewDiscountCodes(data.data);
+    } else {
+      throw new Error(data.message || "Failed to generate discount code");
+    }
+
+  } catch (error: any) {
+    console.error("Error generating discount code:", error);
+    setMessage(error.message || "Something went wrong");
+  } finally {
+    if (setLoading) {
+      setLoading((prev: any) => ({ ...prev, new: false }));
+    }
+  }
+};
