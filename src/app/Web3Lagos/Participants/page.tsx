@@ -298,16 +298,213 @@ export default function ParticipantsTable() {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      {/* <h1 className="text-2xl font-bold mb-4">Participants</h1> */}
-      <ParticipantsTable data={participants} />
-    </div>
+    <main className="p-4 w-full space-y-4">
+      <h1 className="text-2xl font-bold mb-4 text-center">Participants</h1>
+
+      <div className="flex justify-between items-center mb-4">
+        <div className="w-1/3">
+          <Input
+            placeholder="Filter by name or email"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="py-2 px-4"
+          />
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span>Items per page:</span>
+          <Select
+            value={itemsPerPage.toString()}
+            onValueChange={handleItemsPerPageChange}
+          >
+            <SelectTrigger className="w-[70px]">
+              <SelectValue placeholder="10" />
+            </SelectTrigger>
+            <SelectContent>
+              {[5, 10, 20, 50].map((num) => (
+                <SelectItem key={num} value={num.toString()}>
+                  {num}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Course</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {currentItems.map((participant) => (
+            <TableRow key={participant.id}>
+              <TableCell>{participant.name}</TableCell>
+              <TableCell>{participant.email}</TableCell>
+              <TableCell>{participant.course.name}</TableCell>
+              <TableCell>
+                <div className="relative group">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setSelectedParticipant(participant)}
+                  >
+                    <MdMoreHoriz size={20} />
+                  </Button>
+                  <div className="absolute hidden group-hover:flex items-center space-x-2 bg-white shadow-md rounded-md p-2 z-10">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditModal(participant)}
+                      className="hover:bg-gray-100"
+                    >
+                      <MdEdit size={16} />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => openDeleteModal(participant)}
+                      className="hover:bg-red-600"
+                    >
+                      <MdDelete size={16} />
+                    </Button>
+                  </div>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <div className="flex justify-center mt-4">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                className={
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                }
+              />
+            </PaginationItem>
+
+            {[...Array(totalPages)].map((_, index) => (
+              <PaginationItem key={index}>
+                <PaginationLink
+                  onClick={() => handlePageChange(index + 1)}
+                  isActive={currentPage === index + 1}
+                >
+                  {index + 1}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+
+            <PaginationItem>
+              <PaginationNext
+                onClick={() =>
+                  handlePageChange(Math.min(totalPages, currentPage + 1))
+                }
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
+
+      {/* Edit Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-none">
+            <DialogTitle>Edit Participant</DialogTitle>
+            <DialogDescription>Update participant details</DialogDescription>
+          </DialogHeader>
+
+          <div className=" flex-1 overflow-y-auto pr-2 my-4">
+            <div className="grid gap-4">
+              {[
+                { label: "Name", key: "name" },
+                { label: "Email", key: "email" },
+                { label: "Wallet Address", key: "wallet_address" },
+                { label: "GitHub", key: "github" },
+                { label: "City", key: "city" },
+                { label: "State", key: "state" },
+                { label: "Country", key: "country" },
+                { label: "Gender", key: "gender" },
+                { label: "Motivation", key: "motivation" },
+                { label: "Achievement", key: "achievement" },
+                { label: "Cohort", key: "cohort" },
+                { label: "Payment Status", key: "payment_status" },
+              ].map(({ label, key }) => (
+                <div key={key} className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor={key} className="text-right">
+                    {label}
+                  </Label>
+                  <Input
+                    id={key}
+                    value={String(editFormData[key as keyof Participant] || "")}
+                    onChange={(e) =>
+                      setEditFormData((prev) => ({
+                        ...prev,
+                        [key]: e.target.value,
+                      }))
+                    }
+                    className="col-span-3"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter className="flex-none border-t pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditModalOpen(false)}
+              disabled={isLoading.edit}
+            >
+              Cancel
+            </Button>
+            <Button onClick={saveEdit} disabled={isLoading.edit}>
+              {isLoading.edit ? "Updating..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this participant?
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={isLoading.delete}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={isLoading.delete}
+            >
+              {isLoading.delete ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </main>
   );
 }
-
-// import { ParticipantsTable } from "./ParticipantTable";
-// import staticParticipants from "./staticParticipants";
-
-// export default function ParticipantsPage() {
-//   return <ParticipantsTable data={staticParticipants} />;
-// }
