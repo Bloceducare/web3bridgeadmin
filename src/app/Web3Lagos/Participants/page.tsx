@@ -85,10 +85,8 @@ export default function ParticipantsTable() {
   const [selectedParticipant, setSelectedParticipant] =
     useState<Participant | null>(null);
   const [token, setToken] = useState("");
-
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<Participant>>({});
@@ -99,7 +97,7 @@ export default function ParticipantsTable() {
   });
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("authToken");
+    const storedToken = localStorage.getItem("token");
     if (storedToken) setToken(storedToken);
   }, []);
 
@@ -114,7 +112,7 @@ export default function ParticipantsTable() {
           {
             method: "GET",
             headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization: `${token}`,
               "Content-Type": "application/json",
             },
             cache: "no-store",
@@ -160,17 +158,26 @@ export default function ParticipantsTable() {
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(updatedData),
         }
       );
 
-      if (!response.ok)
-        throw new Error(`Failed to update: ${response.statusText}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `Failed to update: ${response.statusText}`
+        );
+      }
 
-      const updatedParticipant = await response.json();
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || "Failed to update participant");
+      }
+
+      const updatedParticipant = result.data;
 
       setParticipants((prev) =>
         prev.map((p) =>
@@ -183,9 +190,12 @@ export default function ParticipantsTable() {
         )
       );
       setIsEditModalOpen(false);
+      alert("Participant updated successfully");
     } catch (error) {
       console.error("Error updating participant:", error);
-      alert("Failed to update participant");
+      alert(
+        error instanceof Error ? error.message : "Failed to update participant"
+      );
     } finally {
       setIsLoading((prev) => ({ ...prev, edit: false }));
     }
@@ -199,20 +209,28 @@ export default function ParticipantsTable() {
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `${token}`,
             "Content-Type": "application/json",
           },
         }
       );
 
-      if (!response.ok) throw new Error("Failed to delete participant");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to delete: ${response.statusText}`
+        );
+      }
 
       setParticipants((prev) => prev.filter((p) => p.id !== id));
       setFilteredParticipants((prev) => prev.filter((p) => p.id !== id));
       setIsDeleteModalOpen(false);
+      alert("Participant deleted successfully");
     } catch (error) {
       console.error("Error deleting participant:", error);
-      alert("Failed to delete participant");
+      alert(
+        error instanceof Error ? error.message : "Failed to delete participant"
+      );
     } finally {
       setIsLoading((prev) => ({ ...prev, delete: false }));
     }
@@ -228,6 +246,11 @@ export default function ParticipantsTable() {
       city: participant.city,
       state: participant.state,
       country: participant.country,
+      gender: participant.gender,
+      motivation: participant.motivation,
+      achievement: participant.achievement,
+      cohort: participant.cohort,
+      payment_status: participant.payment_status,
     });
     setIsEditModalOpen(true);
   };
@@ -397,42 +420,49 @@ export default function ParticipantsTable() {
 
       {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-none">
             <DialogTitle>Edit Participant</DialogTitle>
             <DialogDescription>Update participant details</DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {[
-              { label: "Name", key: "name" },
-              { label: "Email", key: "email" },
-              { label: "Wallet Address", key: "wallet_address" },
-              { label: "GitHub", key: "github" },
-              { label: "City", key: "city" },
-              { label: "State", key: "state" },
-              { label: "Country", key: "country" },
-            ].map(({ label, key }) => (
-              <div key={key} className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor={key} className="text-right">
-                  {label}
-                </Label>
-                <Input
-                  id={key}
-                  value={String(editFormData[key as keyof Participant] || "")}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      [key]: e.target.value,
-                    }))
-                  }
-                  className="col-span-3"
-                />
-              </div>
-            ))}
+          <div className=" flex-1 overflow-y-auto pr-2 my-4">
+            <div className="grid gap-4">
+              {[
+                { label: "Name", key: "name" },
+                { label: "Email", key: "email" },
+                { label: "Wallet Address", key: "wallet_address" },
+                { label: "GitHub", key: "github" },
+                { label: "City", key: "city" },
+                { label: "State", key: "state" },
+                { label: "Country", key: "country" },
+                { label: "Gender", key: "gender" },
+                { label: "Motivation", key: "motivation" },
+                { label: "Achievement", key: "achievement" },
+                { label: "Cohort", key: "cohort" },
+                { label: "Payment Status", key: "payment_status" },
+              ].map(({ label, key }) => (
+                <div key={key} className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor={key} className="text-right">
+                    {label}
+                  </Label>
+                  <Input
+                    id={key}
+                    value={String(editFormData[key as keyof Participant] || "")}
+                    onChange={(e) =>
+                      setEditFormData((prev) => ({
+                        ...prev,
+                        [key]: e.target.value,
+                      }))
+                    }
+                    className="col-span-3"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-none border-t pt-4">
             <Button
               variant="outline"
               onClick={() => setIsEditModalOpen(false)}
