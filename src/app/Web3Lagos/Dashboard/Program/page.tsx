@@ -5,6 +5,8 @@ import { ScaleLoader } from "react-spinners";
 import { Trash2, LockKeyholeOpen,  } from 'lucide-react';
 import {BeatLoader} from 'react-spinners';
 import { handledeleteProgram, fetchRegistrationData } from '@/hooks/useUpdateProgram';
+import { motion, AnimatePresence } from "framer-motion"
+
 
 
 interface Registration {
@@ -64,17 +66,20 @@ function page() {
       const [token, setToken] = useState("")
       const [message, setMessage] = useState("");
       const [isNewProgramOpen, setIsNewProgramOpen] = useState<boolean>(false); 
+      const [openCourses, setOpenCourse] = useState<boolean>(false)
         const [courses, setCourses] = useState<Course[]>([]);
         const [Delmessage, setDelMessage] = useState<Record<string, string>>({});
       const [loading, setLoading] = useState<{
         delete: { [key: number]: boolean }; 
         other: boolean; 
         add: boolean;
+        wait: boolean;
         view:{ [key: number]: boolean };
       }>({
         delete: {}, 
         other: false,
         add: false,
+        wait: false,
         view: {}
       }); 
 
@@ -90,7 +95,8 @@ function page() {
                 ...prev,
                 view: { ...prev.view, [num]: true },
               }));
-            
+              setLoading((prev) => ({ ...prev, wait: true }));
+              setOpenCourse(true)
               try {
                 const results: Course[] = []; 
             
@@ -126,6 +132,7 @@ function page() {
                   ...prev,
                   view: { ...prev.view, [num]: false },
                 }));
+                setLoading((prev) => ({ ...prev, wait: false }));
               }
       };
 
@@ -330,7 +337,7 @@ const handleChange = (
             <div className='flex flex-wrap gap-5 justify-start mt-5'>
 
                 {registration.map((register) => (
-                    <div className='bg-white shadow-xl rounded-lg space-y-4 px-4 py-4 w-[30%]'>
+                    <div className='bg-white shadow-xl rounded-lg space-y-4 px-4 py-4 lg:w-[30%]'>
                         <p> <b>Name : </b>  {register.name}</p>
                          <p> <b>Cohort :</b> {register.cohort} </p>
                         <p> <b>Fee : </b> {register.registrationFee} </p>
@@ -369,24 +376,59 @@ const handleChange = (
         )
 
     }
-       
+
+       <AnimatePresence>
+           {openCourses && (
+                  <div
+                  className="fixed inset-0 bg-black bg-opacity-50 z-10"
+                  onClick={() => setOpenCourse(false)}
+                  />
+              )} 
 
 
-       {!isNewProgramOpen && (
-        <div> 
-<div className='flex flex-col gap-5 mt-3'>
-      {courses.map((course) => (
-        <div key={course.id} className='border-2 border-black  rounded-md p-2  '>
-          <h2> <b>Name : </b> {course.name}</h2>
-          <p> <b>Course : </b> {course.description}</p>
-          <p> <b>  Venue: </b>{course.venue.join(" , ")}</p>
-          <p> <b>Status:</b>  {course.status ? "Active" : "Inactive"}</p>
-          <p> <b>Extra Info:</b>  {course.extra_info}</p>
+       {openCourses && (
+       <motion.div
+       initial={{ opacity: 0, y: 100 }}
+       animate={{ opacity: 1, y: 0 }}
+       exit={{ opacity: 0, y: 100 }}
+       transition={{ duration: 0.4, ease: "easeOut" }}
+       className="fixed top-[10%]  transform -translate-x-1/2 w-full max-w-3xl h-[700px] bg-white p-6 rounded-lg shadow-lg z-20 overflow-y-auto"
+     >
+       <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold">Courses</h2>
+                  <button
+                  onClick={() => setOpenCourse(false)}
+                    className="text-gray-600 hover:text-red-500"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className='flex flex-col gap-5 mt-3'>
+          {loading.wait ? (
+            <div className='flex justify-center items-center h-[70vh]'>
+              <p className='flex items-end '>Crunching data  <BeatLoader size={5} /></p>
+            </div>
+          )  : courses.length === 0 ? (
+            <div className='flex justify-center items-center gap-2 flex-col h-[70vh]'>
+              <p>No course available</p>
+              <a href='/Web3Lagos/Dashboard' className='text-base text-blue-800'>Create course</a>
+            </div>
+          )  : (
+            courses.map((course) => (
+              <div key={course.id} className='text-black p-3 border rounded-lg bg-gray-100'>
+                <h2><b>Name: </b>{course.name}</h2>
+                <p><b>Course: </b>{course.description}</p>
+                <p><b>Venue: </b>{course.venue.join(" , ")}</p>
+                <p><b>Status: </b>{course.status ? "Active" : "Inactive"}</p>
+                <p><b>Extra Info: </b>{course.extra_info}</p>
+              </div>
+            ))
+          )}
         </div>
-      ))}
-    </div>
-    </div>
+
+    </motion.div>
        )}
+       </AnimatePresence>
     </div>
   )
 }

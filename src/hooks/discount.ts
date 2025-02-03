@@ -1,3 +1,4 @@
+import { error } from "console";
 
 export const fetchAllDiscount = async (
     token: string, 
@@ -123,3 +124,53 @@ export const generateDiscountCode = async (
     }
   }
 };
+
+
+export const validateDiscountCode = async (
+  discode: string,
+  token: string,
+  setMessage: (data: string) => void,
+  setLoading?: (value: (prev: any) => any) => void
+) => {
+  if (setLoading) {
+    setLoading((prev: any) => ({ ...prev, validate: true }));
+  }
+
+  const dataToSend = {
+    code : discode
+  }
+
+  try {
+    const response = await fetch(`https://web3bridgewebsitebackend.onrender.com/api/v2/payment/discount/validate/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `${token}`, 
+      },
+      body: JSON.stringify({
+        code: discode
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) { 
+      if (data === true) {
+        setMessage("✅ Code is valid!");
+      } else {
+        setMessage("❌ Invalid discount code. Please try again.");
+      }
+    } else {
+      throw new Error(data.message || "Failed to validate discount code");
+    }
+
+  } catch (error: any) {
+    console.error("Error validating discount code:", error);
+    setMessage(error.message || "Something went wrong");
+  } finally {
+    if (setLoading) {
+      setLoading((prev: any) => ({ ...prev, validate: false }));
+    }
+  }
+};
+
