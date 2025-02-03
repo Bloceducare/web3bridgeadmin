@@ -385,15 +385,18 @@ export default function ParticipantsTable() {
             <PaginationItem>
               <PaginationPrevious
                 onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                className={
-                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
-                }
+                className={`cursor-pointer ${
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }`}
               />
             </PaginationItem>
 
             {[...Array(totalPages)].map((_, index) => (
               <PaginationItem key={index}>
                 <PaginationLink
+                  className="cursor-pointer"
                   onClick={() => handlePageChange(index + 1)}
                   isActive={currentPage === index + 1}
                 >
@@ -407,11 +410,11 @@ export default function ParticipantsTable() {
                 onClick={() =>
                   handlePageChange(Math.min(totalPages, currentPage + 1))
                 }
-                className={
+                className={`cursor-pointer ${
                   currentPage === totalPages
                     ? "pointer-events-none opacity-50"
                     : ""
-                }
+                }`}
               />
             </PaginationItem>
           </PaginationContent>
