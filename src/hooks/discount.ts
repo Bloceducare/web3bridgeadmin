@@ -141,7 +141,6 @@ export const validateDiscountCode = async (
   }
 
   try {
-    const dataToSendAsDict = Object.fromEntries(Object.entries(dataToSend)); 
     const response = await fetch(`https://web3bridgewebsitebackend.onrender.com/api/v2/payment/discount/validate/`, {
       method: "POST",
       headers: {
