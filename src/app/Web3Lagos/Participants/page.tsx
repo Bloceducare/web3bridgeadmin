@@ -396,6 +396,7 @@ export default function ParticipantsTable() {
             {[...Array(totalPages)].map((_, index) => (
               <PaginationItem key={index}>
                 <PaginationLink
+                  className="cursor-pointer"
                   onClick={() => handlePageChange(index + 1)}
                   isActive={currentPage === index + 1}
                 >
