@@ -12,7 +12,7 @@ import {
 import { Input } from "@/Components/ui/input";
 import { Button } from "@/Components/ui/button";
 import { Label } from "@/Components/ui/label";
-import { MdMoreHoriz, MdDelete, MdEdit } from "react-icons/md";
+import { MdMoreHoriz, MdDelete, MdEdit, MdAdd } from "react-icons/md";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +64,7 @@ interface Participant {
   github: string;
   cohort: null | string;
   payment_status: boolean;
+  registration: number;
 }
 
 interface ApiResponse {
@@ -94,7 +95,131 @@ export default function ParticipantsTable() {
     edit: false,
     delete: false,
     fetch: true,
+    create: false,
   });
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createFormData, setCreateFormData] = useState<Partial<Participant>>({
+    name: "",
+    email: "",
+    wallet_address: "",
+    github: "",
+    city: "",
+    state: "",
+    country: "",
+    gender: "",
+    motivation: "",
+    achievement: "",
+    cohort: null,
+    payment_status: false,
+    registration: undefined,
+  });
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<{
+    id: number;
+    registration: number;
+  } | null>(null);
+
+  const handleCourseSelect = (course: { id: number; registration: number }) => {
+    setSelectedCourse(course);
+  };
+
+  const fetchCourses = async () => {
+    try {
+      const response = await fetch(
+        "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/all/",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok)
+        throw new Error(`API call failed: ${response.statusText}`);
+      const result = await response.json();
+      if (result.success) {
+        setCourses(result.data);
+      }
+    } catch (error) {
+      alert("Failed to fetch courses");
+    }
+  };
+  useEffect(() => {
+    if (token) {
+      fetchCourses();
+    }
+  }, [token]);
+
+  const handleCreate = async () => {
+    setIsLoading((prev) => ({ ...prev, create: true }));
+    if (!selectedCourse) {
+      alert("Please select a course first");
+      setIsLoading((prev) => ({ ...prev, create: false }));
+      return;
+    }
+
+    try {
+      const payload = {
+        ...createFormData,
+        course: selectedCourse.id, // Send course ID
+        registration: selectedCourse.registration, // Send registration ID
+      };
+
+      const response = await fetch(
+        "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `Failed to create: ${response.statusText}`
+        );
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || "Failed to create participant");
+      }
+
+      const newParticipant = result.data;
+      setParticipants((prev) => [...prev, newParticipant]);
+      setFilteredParticipants((prev) => [...prev, newParticipant]);
+      setIsCreateModalOpen(false);
+      setCreateFormData({
+        name: "",
+        email: "",
+        wallet_address: "",
+        github: "",
+        city: "",
+        state: "",
+        country: "",
+        gender: "",
+        motivation: "",
+        achievement: "",
+        cohort: null,
+        payment_status: false,
+      });
+      setSelectedCourse(null); // Reset selected course
+      alert("Participant created successfully");
+    } catch (error) {
+      console.error("Error creating participant:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to create participant"
+      );
+    } finally {
+      setIsLoading((prev) => ({ ...prev, create: false }));
+    }
+  };
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
@@ -301,7 +426,40 @@ export default function ParticipantsTable() {
     <main className="p-4 w-full space-y-4">
       <h1 className="text-2xl font-bold mb-4 text-center">Participants</h1>
 
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4 ">
+        <Button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="flex items-center gap-2 space-x-2 bg-transparent text-black on hover:bg-gray-100"
+        >
+          <MdAdd size={20} />
+          Add Participant
+        </Button>
+        <div className=" items-center gap-4">
+          <Select
+            onValueChange={(value) => {
+              const selectedCourse = courses.find(
+                (course) => course.name === value
+              );
+              if (selectedCourse) {
+                handleCourseSelect({
+                  id: selectedCourse.id,
+                  registration: selectedCourse.registration,
+                });
+              }
+            }}
+          >
+            <SelectTrigger className="col-span-10 space-x- hover:bg-gray-100">
+              <SelectValue placeholder="Select course" />
+            </SelectTrigger>
+            <SelectContent>
+              {courses.map((course) => (
+                <SelectItem key={course.id} value={course.name}>
+                  {course.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="w-1/3">
           <Input
             placeholder="Filter by name or email"
@@ -420,6 +578,94 @@ export default function ParticipantsTable() {
           </PaginationContent>
         </Pagination>
       </div>
+
+      {/* Create Modal */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-none">
+            <DialogTitle>Create New Participant</DialogTitle>
+            <DialogDescription>
+              Enter the details for the new participant
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto pr-2 my-4">
+            <div className="grid gap-4">
+              {[
+                { label: "Name", key: "name" },
+                { label: "Email", key: "email" },
+                { label: "Wallet Address", key: "wallet_address" },
+                { label: "GitHub", key: "github" },
+                { label: "City", key: "city" },
+                { label: "State", key: "state" },
+                { label: "Country", key: "country" },
+                { label: "Gender", key: "gender" },
+                { label: "Motivation", key: "motivation" },
+                { label: "Achievement", key: "achievement" },
+                { label: "Cohort", key: "cohort" },
+              ].map(({ label, key }) => (
+                <div key={key} className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor={`create-${key}`} className="text-right">
+                    {label}
+                  </Label>
+                  <Input
+                    id={`create-${key}`}
+                    value={String(
+                      createFormData[key as keyof Participant] || ""
+                    )}
+                    onChange={(e) =>
+                      setCreateFormData((prev) => ({
+                        ...prev,
+                        [key]: e.target.value,
+                      }))
+                    }
+                    className="col-span-3"
+                  />
+                </div>
+              ))}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="create-payment_status" className="text-right">
+                  Payment Status
+                </Label>
+                <Select
+                  value={createFormData.payment_status ? "true" : "false"}
+                  onValueChange={(value) =>
+                    setCreateFormData((prev) => ({
+                      ...prev,
+                      payment_status: value === "true",
+                    }))
+                  }
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select payment status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Paid</SelectItem>
+                    <SelectItem value="false">Unpaid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-none border-t pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateModalOpen(false)}
+              disabled={isLoading.create}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreate}
+              disabled={isLoading.create}
+              className="bg-primary"
+            >
+              {isLoading.create ? "Creating..." : "Create Participant"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
