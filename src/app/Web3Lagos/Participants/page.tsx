@@ -542,11 +542,9 @@ export default function ParticipantsTable() {
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
-                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                onClick={() => handlePageChange(Math.max(currentPage - 1))}
                 className={`cursor-pointer ${
-                  currentPage === totalPages
-                    ? "pointer-events-none opacity-50"
-                    : ""
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
                 }`}
               />
             </PaginationItem>
