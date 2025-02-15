@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Inter } from "next/font/google";
-// import "./globals.css";
+import "../../app/globals.css";
 
 import avatar from "../../../public/Web3LagosSvg/button-icon.png";
 import downArror from "../../../public/Web3LagosSvg/icon.svg";

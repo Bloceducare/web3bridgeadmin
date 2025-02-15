@@ -434,7 +434,7 @@ export default function ParticipantsTable() {
           <MdAdd size={20} />
           Add Participant
         </Button>
-        <div className=" items-center gap-4">
+        {/* <div className=" items-center gap-4">
           <Select
             onValueChange={(value) => {
               const selectedCourse = courses.find(
@@ -459,7 +459,7 @@ export default function ParticipantsTable() {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </div> */}
         <div className="w-1/3">
           <Input
             placeholder="Filter by name or email"
@@ -589,6 +589,35 @@ export default function ParticipantsTable() {
 
           <div className="flex-1 overflow-y-auto pr-2 my-4">
             <div className="grid gap-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="create-course" className="text-right">
+                  Course
+                </Label>
+                <Select
+                  onValueChange={(value) => {
+                    const selectedCourse = courses.find(
+                      (course) => course.name === value
+                    );
+                    if (selectedCourse) {
+                      handleCourseSelect({
+                        id: selectedCourse.id,
+                        registration: selectedCourse.registration,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select course" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courses.map((course) => (
+                      <SelectItem key={course.id} value={course.name}>
+                        {course.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               {[
                 { label: "Name", key: "name" },
                 { label: "Email", key: "email" },
@@ -597,7 +626,6 @@ export default function ParticipantsTable() {
                 { label: "City", key: "city" },
                 { label: "State", key: "state" },
                 { label: "Country", key: "country" },
-                { label: "Gender", key: "gender" },
                 { label: "Motivation", key: "motivation" },
                 { label: "Achievement", key: "achievement" },
                 { label: "Cohort", key: "cohort" },
@@ -621,6 +649,29 @@ export default function ParticipantsTable() {
                   />
                 </div>
               ))}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="create-gender" className="text-right">
+                  Gender
+                </Label>
+                <Select
+                  value={createFormData.gender}
+                  onValueChange={(value) =>
+                    setCreateFormData((prev) => ({
+                      ...prev,
+                      gender: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="create-payment_status" className="text-right">
                   Payment Status
@@ -675,6 +726,36 @@ export default function ParticipantsTable() {
 
           <div className=" flex-1 overflow-y-auto pr-2 my-4">
             <div className="grid gap-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-course" className="text-right">
+                  Course
+                </Label>
+                <Select
+                  defaultValue={selectedParticipant?.course.name}
+                  onValueChange={(value) => {
+                    const selectedCourse = courses.find(
+                      (course) => course.name === value
+                    );
+                    if (selectedCourse) {
+                      handleCourseSelect({
+                        id: selectedCourse.id,
+                        registration: selectedCourse.registration,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select course" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courses.map((course) => (
+                      <SelectItem key={course.id} value={course.name}>
+                        {course.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               {[
                 { label: "Name", key: "name" },
                 { label: "Email", key: "email" },
@@ -683,11 +764,9 @@ export default function ParticipantsTable() {
                 { label: "City", key: "city" },
                 { label: "State", key: "state" },
                 { label: "Country", key: "country" },
-                { label: "Gender", key: "gender" },
                 { label: "Motivation", key: "motivation" },
                 { label: "Achievement", key: "achievement" },
                 { label: "Cohort", key: "cohort" },
-                { label: "Payment Status", key: "payment_status" },
               ].map(({ label, key }) => (
                 <div key={key} className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor={key} className="text-right">
@@ -706,6 +785,52 @@ export default function ParticipantsTable() {
                   />
                 </div>
               ))}
+  <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-gender" className="text-right">
+                  Gender
+                </Label>
+                <Select
+                  value={editFormData.gender}
+                  onValueChange={(value) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      gender: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Payment Status Dropdown */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-payment_status" className="text-right">
+                  Payment Status
+                </Label>
+                <Select
+                  value={editFormData.payment_status ? "true" : "false"}
+                  onValueChange={(value) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      payment_status: value === "true",
+                    }))
+                  }
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select payment status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Paid</SelectItem>
+                    <SelectItem value="false">Unpaid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
