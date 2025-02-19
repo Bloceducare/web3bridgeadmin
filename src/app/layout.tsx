@@ -1,4 +1,4 @@
-import { NavBar, PageNav } from "../Components";
+import { NavBar } from "../Components";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -24,9 +24,6 @@ export default function RootLayout({
         <div className="flex  w-full lg:w-5/6 p-2 items-center justify-center">
           <div className="flex h-full w-full overflow-hidden   bg-white rounded-lg flex-col text-black">
             {children}
-            {/* <PageNav pageTitle=""/>
-            <div className="flex w-full h-full justify-center items-cente rounded-lg p-2">
-            </div> */}
           </div>
         </div>
       </body>
