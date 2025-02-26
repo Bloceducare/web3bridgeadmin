@@ -47,10 +47,18 @@ interface Course {
   status: boolean;
   registration: number;
 }
+interface Cohort {
+  id: number;
+  name: string;
+  cohort: string;
+  registration: number;
+  status: boolean;
+}
 
 interface Participant {
   id: number;
   course: Course;
+  cohort: Cohort;
   name: string;
   wallet_address: string;
   email: string;
@@ -62,7 +70,6 @@ interface Participant {
   country: string;
   gender: string;
   github: string;
-  cohort: null | string;
   payment_status: boolean;
   registration: number;
 }
@@ -109,7 +116,6 @@ export default function ParticipantsTable() {
     gender: "",
     motivation: "",
     achievement: "",
-    cohort: null,
     payment_status: false,
     registration: undefined,
   });
@@ -118,10 +124,52 @@ export default function ParticipantsTable() {
     id: number;
     registration: number;
   } | null>(null);
+  const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [selectedCohort, setSelectedCohort] = useState<{
+    id: number;
+    registration: number;
+  } | null>(null);
 
   const handleCourseSelect = (course: { id: number; registration: number }) => {
     setSelectedCourse(course);
   };
+
+  const handleCohortSelect = (cohort: { id: number; registration: number }) => {
+    setSelectedCohort(cohort);
+  };
+  const fetchCohorts = async () => {
+    try {
+      const response = await fetch(
+        "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/all/",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok)
+        throw new Error(`API call failed: ${response.statusText}`);
+      const result = await response.json();
+      if (result.success) {
+        const allCohorts = result.data.results || result.data;
+        setCohorts(allCohorts);
+        return allCohorts;
+      }
+      return [];
+    } catch (error) {
+      console.error("Failed to fetch cohorts:", error);
+      alert("Failed to fetch cohorts");
+      return [];
+    }
+  };
+  useEffect(() => {
+    if (token) {
+      fetchCohorts();
+    }
+  }, [token]);
 
   const fetchCourses = async () => {
     try {
@@ -163,9 +211,13 @@ export default function ParticipantsTable() {
     try {
       const payload = {
         ...createFormData,
-        course: selectedCourse.id, // Send course ID
-        registration: selectedCourse.registration, // Send registration ID
+        course: selectedCourse.id,
+        registration: selectedCourse.registration,
+        cohort: selectedCohort?.id,
       };
+      if (selectedCohort) {
+        payload.cohort = selectedCohort.id;
+      }
 
       const response = await fetch(
         "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/",
@@ -206,10 +258,10 @@ export default function ParticipantsTable() {
         gender: "",
         motivation: "",
         achievement: "",
-        cohort: null,
         payment_status: false,
       });
-      setSelectedCourse(null); // Reset selected course
+      setSelectedCourse(null);
+      setSelectedCohort(null);
       alert("Participant created successfully");
     } catch (error) {
       console.error("Error creating participant:", error);
@@ -434,32 +486,7 @@ export default function ParticipantsTable() {
           <MdAdd size={20} />
           Add Participant
         </Button>
-        {/* <div className=" items-center gap-4">
-          <Select
-            onValueChange={(value) => {
-              const selectedCourse = courses.find(
-                (course) => course.name === value
-              );
-              if (selectedCourse) {
-                handleCourseSelect({
-                  id: selectedCourse.id,
-                  registration: selectedCourse.registration,
-                });
-              }
-            }}
-          >
-            <SelectTrigger className="col-span-10 space-x- hover:bg-gray-100">
-              <SelectValue placeholder="Select course" />
-            </SelectTrigger>
-            <SelectContent>
-              {courses.map((course) => (
-                <SelectItem key={course.id} value={course.name}>
-                  {course.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div> */}
+
         <div className="w-1/3">
           <Input
             placeholder="Filter by name or email"
@@ -504,6 +531,7 @@ export default function ParticipantsTable() {
               <TableCell>{participant.name}</TableCell>
               <TableCell>{participant.email}</TableCell>
               <TableCell>{participant.course.name}</TableCell>
+
               <TableCell>
                 <div className="relative group">
                   <Button
@@ -618,6 +646,35 @@ export default function ParticipantsTable() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="create-cohort" className="text-right">
+                  Cohort
+                </Label>
+                <Select
+                  onValueChange={(value) => {
+                    const selectedCohort = cohorts.find(
+                      (cohort) => cohort.cohort === value
+                    );
+                    if (selectedCohort) {
+                      handleCohortSelect({
+                        id: selectedCohort.id,
+                        registration: selectedCohort.registration,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohorts.map((cohort) => (
+                      <SelectItem key={cohort.id} value={cohort.cohort}>
+                        {cohort.cohort}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               {[
                 { label: "Name", key: "name" },
                 { label: "Email", key: "email" },
@@ -628,7 +685,6 @@ export default function ParticipantsTable() {
                 { label: "Country", key: "country" },
                 { label: "Motivation", key: "motivation" },
                 { label: "Achievement", key: "achievement" },
-                { label: "Cohort", key: "cohort" },
               ].map(({ label, key }) => (
                 <div key={key} className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor={`create-${key}`} className="text-right">
@@ -649,6 +705,7 @@ export default function ParticipantsTable() {
                   />
                 </div>
               ))}
+
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="create-gender" className="text-right">
                   Gender
@@ -756,6 +813,36 @@ export default function ParticipantsTable() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-cohort" className="text-right">
+                  Cohort
+                </Label>
+                <Select
+                  defaultValue={selectedParticipant?.cohort?.cohort}
+                  onValueChange={(value) => {
+                    const selectedCohort = cohorts.find(
+                      (cohort) => cohort.cohort === value
+                    );
+                    if (selectedCohort) {
+                      handleCohortSelect({
+                        id: selectedCohort.id,
+                        registration: selectedCohort.registration,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohorts.map((cohort) => (
+                      <SelectItem key={cohort.id} value={cohort.cohort}>
+                        {cohort.cohort}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               {[
                 { label: "Name", key: "name" },
                 { label: "Email", key: "email" },
@@ -766,7 +853,6 @@ export default function ParticipantsTable() {
                 { label: "Country", key: "country" },
                 { label: "Motivation", key: "motivation" },
                 { label: "Achievement", key: "achievement" },
-                { label: "Cohort", key: "cohort" },
               ].map(({ label, key }) => (
                 <div key={key} className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor={key} className="text-right">
@@ -785,7 +871,8 @@ export default function ParticipantsTable() {
                   />
                 </div>
               ))}
-  <div className="grid grid-cols-4 items-center gap-4">
+
+              <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-gender" className="text-right">
                   Gender
                 </Label>
