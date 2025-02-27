@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/Components/ui/select";
 
+
 interface Course {
   id: number;
   name: string;
@@ -538,7 +539,7 @@ export default function ParticipantsTable() {
                 <TableCell>{name}</TableCell>
                 <TableCell>{email}</TableCell>
                 <TableCell>
-                  {cohorts?.cohort || cohorts?.name || "No Cohort"}
+                  {cohorts?.cohort || "No Cohort"}
                 </TableCell>
                 <TableCell>{course.name}</TableCell>
                 <TableCell>
