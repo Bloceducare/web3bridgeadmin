@@ -50,15 +50,19 @@ interface Course {
 interface Cohort {
   id: number;
   name: string;
-  cohort: string;
+  cohort: string | null;
+  is_open: boolean;
+  start_date: string;
+  end_date: string;
+  registrationFee: string;
+  courses: Course;
   registration: number;
-  status: boolean;
 }
 
 interface Participant {
   id: number;
   course: Course;
-  cohort: Cohort;
+  cohorts: Cohort;
   name: string;
   wallet_address: string;
   email: string;
@@ -426,7 +430,7 @@ export default function ParticipantsTable() {
       gender: participant.gender,
       motivation: participant.motivation,
       achievement: participant.achievement,
-      cohort: participant.cohort,
+      cohorts: participant.cohorts,
       payment_status: participant.payment_status,
     });
     setIsEditModalOpen(true);
@@ -521,47 +525,53 @@ export default function ParticipantsTable() {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
+            <TableHead>Cohort</TableHead>
             <TableHead>Course</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {currentItems.map((participant) => (
-            <TableRow key={participant.id}>
-              <TableCell>{participant.name}</TableCell>
-              <TableCell>{participant.email}</TableCell>
-              <TableCell>{participant.course.name}</TableCell>
-
-              <TableCell>
-                <div className="relative group">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setSelectedParticipant(participant)}
-                  >
-                    <MdMoreHoriz size={20} />
-                  </Button>
-                  <div className="absolute hidden group-hover:flex items-center space-x-2 bg-white shadow-md rounded-md p-2 z-10">
+          {currentItems.map((participant) => {
+            const { id, name, email, course, cohorts } = participant;
+            return (
+              <TableRow key={id}>
+                <TableCell>{name}</TableCell>
+                <TableCell>{email}</TableCell>
+                <TableCell>
+                  {cohorts?.cohort || cohorts?.name || "No Cohort"}
+                </TableCell>
+                <TableCell>{course.name}</TableCell>
+                <TableCell>
+                  <div className="relative group">
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditModal(participant)}
-                      className="hover:bg-gray-100"
+                      variant="ghost"
+                      onClick={() => setSelectedParticipant(participant)}
                     >
-                      <MdEdit size={16} />
+                      <MdMoreHoriz size={20} />
                     </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => openDeleteModal(participant)}
-                      className="hover:bg-red-600"
-                    >
-                      <MdDelete size={16} />
-                    </Button>
+                    <div className="absolute hidden group-hover:flex items-center space-x-2 bg-white shadow-md rounded-md p-2 z-10">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditModal(participant)}
+                        className="hover:bg-gray-100"
+                      >
+                        <MdEdit size={16} />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => openDeleteModal(participant)}
+                        className="hover:bg-red-600"
+                      >
+                        <MdDelete size={16} />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
 
@@ -653,7 +663,7 @@ export default function ParticipantsTable() {
                 <Select
                   onValueChange={(value) => {
                     const selectedCohort = cohorts.find(
-                      (cohort) => cohort.cohort === value
+                      (cohorts) => cohorts.cohort === value
                     );
                     if (selectedCohort) {
                       handleCohortSelect({
@@ -668,7 +678,7 @@ export default function ParticipantsTable() {
                   </SelectTrigger>
                   <SelectContent>
                     {cohorts.map((cohort) => (
-                      <SelectItem key={cohort.id} value={cohort.cohort}>
+                      <SelectItem key={cohort.id} value={cohort.cohort || `cohort-${cohort.id}`}>
                         {cohort.cohort}
                       </SelectItem>
                     ))}
@@ -818,7 +828,7 @@ export default function ParticipantsTable() {
                   Cohort
                 </Label>
                 <Select
-                  defaultValue={selectedParticipant?.cohort?.cohort}
+                  defaultValue={selectedParticipant?.cohorts?.cohort || ""}
                   onValueChange={(value) => {
                     const selectedCohort = cohorts.find(
                       (cohort) => cohort.cohort === value
@@ -836,7 +846,7 @@ export default function ParticipantsTable() {
                   </SelectTrigger>
                   <SelectContent>
                     {cohorts.map((cohort) => (
-                      <SelectItem key={cohort.id} value={cohort.cohort}>
+                      <SelectItem key={cohort.id} value={cohort.cohort || `cohort-${cohort.id}`}>
                         {cohort.cohort}
                       </SelectItem>
                     ))}
