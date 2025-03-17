@@ -541,7 +541,7 @@ export default function ParticipantsTable() {
                 <TableCell>
                   {cohorts?.cohort || "No Cohort"}
                 </TableCell>
-                <TableCell>{course.name}</TableCell>
+                <TableCell>{course?.name || "No Course"}</TableCell>
                 <TableCell>
                   <div className="relative group">
                     <Button
