@@ -323,8 +323,8 @@ export default function ParticipantsTable() {
   useEffect(() => {
     const filtered = participants.filter(
       (p) =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.email.toLowerCase().includes(search.toLowerCase())
+        p?.name.toLowerCase().includes(search.toLowerCase()) ||
+        p?.email.toLowerCase().includes(search.toLowerCase())
     );
     setFilteredParticipants(filtered);
     setCurrentPage(1);
@@ -532,7 +532,7 @@ export default function ParticipantsTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {currentItems.map((participant) => {
+          {currentItems?.map((participant) => {
             const { id, name, email, course, cohorts } = participant;
             return (
               <TableRow key={id}>
@@ -678,7 +678,7 @@ export default function ParticipantsTable() {
                     <SelectValue placeholder="Select cohort" />
                   </SelectTrigger>
                   <SelectContent>
-                    {cohorts.map((cohort) => (
+                    {cohorts?.map((cohort) => (
                       <SelectItem key={cohort.id} value={cohort.cohort || `cohort-${cohort.id}`}>
                         {cohort.cohort}
                       </SelectItem>
