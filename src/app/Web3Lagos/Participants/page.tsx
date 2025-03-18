@@ -37,7 +37,6 @@ import {
   SelectValue,
 } from "@/Components/ui/select";
 
-
 interface Course {
   id: number;
   name: string;
@@ -64,6 +63,7 @@ interface Participant {
   id: number;
   course: Course;
   cohorts: Cohort;
+  cohort: string;
   name: string;
   wallet_address: string;
   email: string;
@@ -532,15 +532,16 @@ export default function ParticipantsTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {currentItems?.map((participant) => {
-            const { id, name, email, course, cohorts } = participant;
+
+          {currentItems.map((participant) => {
+            const { id, name, email, course, cohort } = participant;
+
+
             return (
               <TableRow key={id}>
                 <TableCell>{name}</TableCell>
                 <TableCell>{email}</TableCell>
-                <TableCell>
-                  {cohorts?.cohort || "No Cohort"}
-                </TableCell>
+                <TableCell>{cohort}</TableCell>
                 <TableCell>{course?.name || "No Course"}</TableCell>
                 <TableCell>
                   <div className="relative group">
@@ -678,8 +679,13 @@ export default function ParticipantsTable() {
                     <SelectValue placeholder="Select cohort" />
                   </SelectTrigger>
                   <SelectContent>
-                    {cohorts?.map((cohort) => (
-                      <SelectItem key={cohort.id} value={cohort.cohort || `cohort-${cohort.id}`}>
+
+                    {cohorts.map((cohort) => (
+                      <SelectItem
+                        key={cohort.id}
+                        value={cohort.cohort || `cohort-${cohort.id}`}
+                      >
+
                         {cohort.cohort}
                       </SelectItem>
                     ))}
@@ -847,7 +853,10 @@ export default function ParticipantsTable() {
                   </SelectTrigger>
                   <SelectContent>
                     {cohorts.map((cohort) => (
-                      <SelectItem key={cohort.id} value={cohort.cohort || `cohort-${cohort.id}`}>
+                      <SelectItem
+                        key={cohort.id}
+                        value={cohort.cohort || `cohort-${cohort.id}`}
+                      >
                         {cohort.cohort}
                       </SelectItem>
                     ))}
