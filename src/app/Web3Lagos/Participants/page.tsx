@@ -333,8 +333,6 @@ export default function ParticipantsTable() {
       (p) =>
         p?.name.toLowerCase().includes(search.toLowerCase()) ||
         p?.email.toLowerCase().includes(search.toLowerCase())
-        p?.name.toLowerCase().includes(search.toLowerCase()) ||
-        p?.email.toLowerCase().includes(search.toLowerCase())
     );
     setFilteredParticipants(filtered);
     setCurrentPage(1);
