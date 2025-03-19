@@ -286,29 +286,37 @@ export default function ParticipantsTable() {
   useEffect(() => {
     if (!token) return;
 
-    const fetchParticipants = async () => {
+    const fetchAllParticipants = async () => {
       setIsLoading((prev) => ({ ...prev, fetch: true }));
       try {
-        const response = await fetch(
-          "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/all/",
-          {
+        let allResults: Participant[] = [];
+        let nextUrl: string | null =
+          "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/all/";
+
+        while (nextUrl) {
+          const response = await fetch(nextUrl, {
             method: "GET",
             headers: {
               Authorization: `${token}`,
               "Content-Type": "application/json",
             },
             cache: "no-store",
+          });
+
+          if (!response.ok)
+            throw new Error(`API call failed: ${response.statusText}`);
+
+          const result: ApiResponse = await response.json();
+          if (result.success) {
+            allResults = [...allResults, ...result.data.results];
+            nextUrl = result.data.next;
+          } else {
+            throw new Error("Failed to fetch participants");
           }
-        );
-
-        if (!response.ok)
-          throw new Error(`API call failed: ${response.statusText}`);
-
-        const result: ApiResponse = await response.json();
-        if (result.success) {
-          setParticipants(result.data.results);
-          setFilteredParticipants(result.data.results);
         }
+
+        setParticipants(allResults);
+        setFilteredParticipants(allResults);
       } catch (error) {
         console.error("Error fetching participants:", error);
         alert("Failed to fetch participants");
@@ -317,14 +325,14 @@ export default function ParticipantsTable() {
       }
     };
 
-    fetchParticipants();
+    fetchAllParticipants();
   }, [token]);
 
   useEffect(() => {
     const filtered = participants.filter(
       (p) =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.email.toLowerCase().includes(search.toLowerCase())
+        p?.name.toLowerCase().includes(search.toLowerCase()) ||
+        p?.email.toLowerCase().includes(search.toLowerCase())
     );
     setFilteredParticipants(filtered);
     setCurrentPage(1);
@@ -511,7 +519,7 @@ export default function ParticipantsTable() {
               <SelectValue placeholder="10" />
             </SelectTrigger>
             <SelectContent>
-              {[5, 10, 20, 50].map((num) => (
+              {[10, 25, 50, 100, 200, 500].map((num) => (
                 <SelectItem key={num} value={num.toString()}>
                   {num}
                 </SelectItem>
@@ -534,6 +542,7 @@ export default function ParticipantsTable() {
         <TableBody>
           {currentItems.map((participant) => {
             const { id, name, email, course, cohort } = participant;
+
             return (
               <TableRow key={id}>
                 <TableCell>{name}</TableCell>
