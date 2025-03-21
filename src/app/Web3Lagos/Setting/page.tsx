@@ -36,6 +36,8 @@ function page() {
   const [message, setMessage] = useState<string>(""); 
   const [Valmessage, setValMessage] = useState<string>(""); 
   const [filterDate, setFilterDate] = useState("");
+  const [filterTime, setFilterTime] = useState("");
+
 
   const [OpenOverlay, setOpenOverlay] = useState(false);
   const [token, setToken] = useState("")
@@ -109,19 +111,25 @@ function page() {
     };
 
     const [filterOption, setFilterOption] = useState("all"); 
+    
     const filteredDiscounts = discountCodes.filter((discount) => {
       const matchesSearch = discount.code.toLowerCase().includes(searchQuery.toLowerCase());
-      const discountDate = new Date(discount.created_at).toISOString().split("T")[0];
-    
+  
+      const discountDate = new Date(discount.created_at).toISOString().split("T")[0]; 
+      const discountTime = new Date(discount.created_at).toISOString().split("T")[1].slice(0, 5); 
+  
       const matchesFilter =
-        filterOption === "all" ||
-        (filterOption === "used" && discount.is_used) ||
-        (filterOption === "unused" && !discount.is_used);
-    
-      const matchesDate = !filterDate || discountDate === filterDate;
-    
-      return matchesSearch && matchesFilter && matchesDate;
-    });
+          filterOption === "all" ||
+          (filterOption === "used" && discount.is_used) ||
+          (filterOption === "unused" && !discount.is_used);
+  
+      const matchesDate = filterDate ? discountDate === filterDate : true;
+  
+      const matchesTime = filterTime ? discountTime === filterTime : true;
+  
+      return matchesSearch && matchesFilter && matchesDate && matchesTime;
+  });
+  
        const toggleAllDiscount = () => {
       setShowAllDiscount((prev) => !prev);
       setOpenOverlay((prev) => !prev);
@@ -214,6 +222,12 @@ function page() {
         onChange={(e) => setFilterDate(e.target.value)}
         className="border p-2 rounded-md"
       />
+
+<input 
+  type="time" 
+  value={filterTime} 
+  onChange={(e) => setFilterTime(e.target.value)} 
+/>
                 </div>
               
 
@@ -258,7 +272,10 @@ function page() {
                           <strong>Claimant:</strong> {discount.claimant}
                         </p>
                         <p>
-                        <strong>Time Created:</strong> {new Date(discount.created_at).toISOString().split("T")[0]}
+                        <strong>Date Created:</strong> {new Date(discount.created_at).toISOString().split("T")[0]}
+                        </p>
+                        <p>
+                        <strong>Time Created:</strong> {new Date(discount.created_at).toISOString().split("T")[1].slice(0, 5)}
                         </p>
                         <div className='flex justify-end'>
                         <button onClick={() => handleDelete(discount.id)}>{loading.delete[discount.id] ? <BeatLoader size={5} />: <Trash2 /> }</button>
