@@ -532,6 +532,7 @@ export default function ParticipantsTable() {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>S/newParticipant</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Cohort</TableHead>
@@ -541,10 +542,12 @@ export default function ParticipantsTable() {
         </TableHeader>
         <TableBody>
 
-          {currentItems.map((participant) => {
+          {currentItems.map((participant, index) => {
             const { id, name, email, course, cohort } = participant;
+            const serialNumber = indexOfFirstItem + index + 1;
             return (
               <TableRow key={id}>
+                <TableCell>{serialNumber }</TableCell>
                 <TableCell>{name}</TableCell>
                 <TableCell>{email}</TableCell>
                 <TableCell>{cohort}</TableCell>
