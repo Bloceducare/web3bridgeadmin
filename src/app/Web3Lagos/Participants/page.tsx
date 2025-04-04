@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -77,6 +78,7 @@ interface Participant {
   github: string;
   payment_status: boolean;
   registration: number;
+  number: string;
 }
 
 interface ApiResponse {
@@ -123,6 +125,7 @@ export default function ParticipantsTable() {
     achievement: "",
     payment_status: false,
     registration: undefined,
+    number: "",
   });
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<{
@@ -132,14 +135,14 @@ export default function ParticipantsTable() {
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [selectedCohort, setSelectedCohort] = useState<{
     id: number;
-    registration: number;
+    name: string;
   } | null>(null);
 
   const handleCourseSelect = (course: { id: number; registration: number }) => {
     setSelectedCourse(course);
   };
 
-  const handleCohortSelect = (cohort: { id: number; registration: number }) => {
+  const handleCohortSelect = (cohort: { id: number; name: string }) => {
     setSelectedCohort(cohort);
   };
   const fetchCohorts = async () => {
@@ -218,11 +221,9 @@ export default function ParticipantsTable() {
         ...createFormData,
         course: selectedCourse.id,
         registration: selectedCourse.registration,
-        cohort: selectedCohort?.id,
+        cohort: selectedCohort?.name,
       };
-      if (selectedCohort) {
-        payload.cohort = selectedCohort.id;
-      }
+     
 
       const response = await fetch(
         "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/",
@@ -264,6 +265,7 @@ export default function ParticipantsTable() {
         motivation: "",
         achievement: "",
         payment_status: false,
+        number: "",
       });
       setSelectedCourse(null);
       setSelectedCohort(null);
@@ -428,6 +430,27 @@ export default function ParticipantsTable() {
 
   const openEditModal = (participant: Participant) => {
     setSelectedParticipant(participant);
+
+    // Set the selected course from the participant's current course
+    if (participant.course && typeof participant.course === "object") {
+      setSelectedCourse({
+        id: participant.course.id,
+        registration: participant.course.registration,
+      });
+    }
+
+    // Find the corresponding cohort object from the cohorts array
+    const participantCohort = cohorts.find(
+      (c) => c.cohort === participant.cohort || c.name === participant.cohort
+    );
+
+    if (participantCohort) {
+      setSelectedCohort({
+        id: participantCohort.id,
+        name: participantCohort.name,
+      });
+    }
+
     setEditFormData({
       name: participant.name,
       email: participant.email,
@@ -439,8 +462,8 @@ export default function ParticipantsTable() {
       gender: participant.gender,
       motivation: participant.motivation,
       achievement: participant.achievement,
-      cohorts: participant.cohorts,
       payment_status: participant.payment_status,
+      number: participant.number,
     });
     setIsEditModalOpen(true);
   };
@@ -455,13 +478,29 @@ export default function ParticipantsTable() {
       handleDelete(selectedParticipant.id);
     }
   };
-
   const saveEdit = async () => {
     if (selectedParticipant) {
-      await handleEdit(editFormData);
+      // Create a copy of the edit form data
+      const dataToSend = { ...editFormData };
+  
+      // Prepare the data for API
+      let apiData: any = { ...dataToSend };
+  
+      // Set the course ID correctly
+      if (selectedCourse) {
+        apiData.course = selectedCourse.id;
+      }
+  
+      // Use the cohort name as the value to send to the API
+      if (selectedCohort) {
+        apiData.cohort = selectedCohort.name;
+      }
+  
+      await handleEdit(apiData);
     }
   };
 
+  
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredParticipants.slice(
@@ -532,7 +571,7 @@ export default function ParticipantsTable() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>S/newParticipant</TableHead>
+            <TableHead>S/N</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Cohort</TableHead>
@@ -541,13 +580,12 @@ export default function ParticipantsTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-
           {currentItems.map((participant, index) => {
             const { id, name, email, course, cohort } = participant;
             const serialNumber = indexOfFirstItem + index + 1;
             return (
               <TableRow key={id}>
-                <TableCell>{serialNumber }</TableCell>
+                <TableCell>{serialNumber}</TableCell>
                 <TableCell>{name}</TableCell>
                 <TableCell>{email}</TableCell>
                 <TableCell>{cohort}</TableCell>
@@ -668,39 +706,37 @@ export default function ParticipantsTable() {
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="create-cohort" className="text-right">
-                  Cohort
-                </Label>
-                <Select
-                  onValueChange={(value) => {
-                    const selectedCohort = cohorts.find(
-                      (cohorts) => cohorts.cohort === value
-                    );
-                    if (selectedCohort) {
-                      handleCohortSelect({
-                        id: selectedCohort.id,
-                        registration: selectedCohort.registration,
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select cohort" />
-                  </SelectTrigger>
-                  <SelectContent>
-
-                    {cohorts.map((cohort) => (
-                      <SelectItem
-                        key={cohort.id}
-                        value={cohort.cohort || `cohort-${cohort.id}`}
-                      >
-
-                        {cohort.cohort}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+  <Label htmlFor="create-cohort" className="text-right">
+    Cohort
+  </Label>
+  <Select
+    onValueChange={(value) => {
+      const selectedCohort = cohorts.find(
+        (cohort) => cohort.name === value
+      );
+      if (selectedCohort) {
+        handleCohortSelect({
+          id: selectedCohort.id,
+          name: selectedCohort.name,
+        });
+      }
+    }}
+  >
+    <SelectTrigger className="col-span-3">
+      <SelectValue placeholder="Select cohort" />
+    </SelectTrigger>
+    <SelectContent>
+      {cohorts.map((cohort) => (
+        <SelectItem
+          key={cohort.id}
+          value={cohort.name}
+        >
+          {cohort.name}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
               {[
                 { label: "Name", key: "name" },
                 { label: "Email", key: "email" },
@@ -711,6 +747,7 @@ export default function ParticipantsTable() {
                 { label: "Country", key: "country" },
                 { label: "Motivation", key: "motivation" },
                 { label: "Achievement", key: "achievement" },
+                { label: "Phone Number", key: "number" },
               ].map(({ label, key }) => (
                 <div key={key} className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor={`create-${key}`} className="text-right">
@@ -840,38 +877,38 @@ export default function ParticipantsTable() {
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-cohort" className="text-right">
-                  Cohort
-                </Label>
-                <Select
-                  defaultValue={selectedParticipant?.cohorts?.cohort || ""}
-                  onValueChange={(value) => {
-                    const selectedCohort = cohorts.find(
-                      (cohort) => cohort.cohort === value
-                    );
-                    if (selectedCohort) {
-                      handleCohortSelect({
-                        id: selectedCohort.id,
-                        registration: selectedCohort.registration,
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select cohort" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cohorts.map((cohort) => (
-                      <SelectItem
-                        key={cohort.id}
-                        value={cohort.cohort || `cohort-${cohort.id}`}
-                      >
-                        {cohort.cohort}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+  <Label htmlFor="edit-cohort" className="text-right">
+    Cohort
+  </Label>
+  <Select
+    value={selectedCohort?.name || ""}
+    onValueChange={(value) => {
+      const cohortObject = cohorts.find(
+        (cohort) => cohort.name === value
+      );
+      if (cohortObject) {
+        handleCohortSelect({
+          id: cohortObject.id,
+          name: cohortObject.name
+        });
+      }
+    }}
+  >
+    <SelectTrigger className="col-span-3">
+      <SelectValue placeholder="Select cohort" />
+    </SelectTrigger>
+    <SelectContent>
+      {cohorts.map((cohort) => (
+        <SelectItem
+          key={cohort.id}
+          value={cohort.name}
+        >
+          {cohort.name}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
               {[
                 { label: "Name", key: "name" },
                 { label: "Email", key: "email" },
@@ -882,6 +919,7 @@ export default function ParticipantsTable() {
                 { label: "Country", key: "country" },
                 { label: "Motivation", key: "motivation" },
                 { label: "Achievement", key: "achievement" },
+                { label: "Phone Number", key: "number" },
               ].map(({ label, key }) => (
                 <div key={key} className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor={key} className="text-right">
