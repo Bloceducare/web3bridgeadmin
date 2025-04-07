@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -223,7 +222,6 @@ export default function ParticipantsTable() {
         registration: selectedCourse.registration,
         cohort: selectedCohort?.name,
       };
-     
 
       const response = await fetch(
         "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/",
@@ -482,25 +480,24 @@ export default function ParticipantsTable() {
     if (selectedParticipant) {
       // Create a copy of the edit form data
       const dataToSend = { ...editFormData };
-  
+
       // Prepare the data for API
       let apiData: any = { ...dataToSend };
-  
+
       // Set the course ID correctly
       if (selectedCourse) {
         apiData.course = selectedCourse.id;
       }
-  
+
       // Use the cohort name as the value to send to the API
       if (selectedCohort) {
         apiData.cohort = selectedCohort.name;
       }
-  
+
       await handleEdit(apiData);
     }
   };
 
-  
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredParticipants.slice(
@@ -591,32 +588,36 @@ export default function ParticipantsTable() {
                 <TableCell>{cohort}</TableCell>
                 <TableCell>{course?.name || "No Course"}</TableCell>
                 <TableCell>
-                  <div className="relative group">
-                    <Button
-                      variant="ghost"
-                      onClick={() => setSelectedParticipant(participant)}
-                    >
-                      <MdMoreHoriz size={20} />
-                    </Button>
-                    <div className="absolute hidden group-hover:flex items-center space-x-2 bg-white shadow-md rounded-md p-2 z-10">
+                
+                  <TableCell>
+                    <div className="relative group">
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditModal(participant)}
-                        className="hover:bg-gray-100"
+                        variant="ghost"
+                        onClick={() => setSelectedParticipant(participant)}
+                        className="group-hover:opacity-0"
                       >
-                        <MdEdit size={16} />
+                        <MdMoreHoriz size={20} />
                       </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => openDeleteModal(participant)}
-                        className="hover:bg-red-600"
-                      >
-                        <MdDelete size={16} />
-                      </Button>
+                      <div className="absolute top-0 right-0 hidden group-hover:flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditModal(participant)}
+                          className="hover:bg-gray-100"
+                        >
+                          <MdEdit size={16} />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => openDeleteModal(participant)}
+                          className="hover:bg-red-600"
+                        >
+                          <MdDelete size={16} />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  </TableCell>
                 </TableCell>
               </TableRow>
             );
@@ -629,24 +630,95 @@ export default function ParticipantsTable() {
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
-                onClick={() => handlePageChange(Math.max(currentPage - 1))}
+                onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
                 className={`cursor-pointer ${
                   currentPage === 1 ? "pointer-events-none opacity-50" : ""
                 }`}
               />
             </PaginationItem>
 
-            {[...Array(totalPages)].map((_, index) => (
-              <PaginationItem key={index}>
-                <PaginationLink
-                  className="cursor-pointer"
-                  onClick={() => handlePageChange(index + 1)}
-                  isActive={currentPage === index + 1}
-                >
-                  {index + 1}
-                </PaginationLink>
-              </PaginationItem>
-            ))}
+            {/* Logic to only show current page and one page on each side (when available) */}
+            {(() => {
+              const pageItems = [];
+
+              // Calculate start and end page numbers to display
+              let startPage = Math.max(currentPage - 1, 1);
+              let endPage = Math.min(startPage + 1, totalPages);
+
+              // Ensure we always show 2 pages when possible
+              if (endPage - startPage < 1 && totalPages > 1) {
+                if (currentPage === totalPages) {
+                  startPage = Math.max(totalPages - 1, 1);
+                } else {
+                  endPage = Math.min(startPage + 1, totalPages);
+                }
+              }
+
+              // Add first page if not included in the range
+              if (startPage > 1) {
+                pageItems.push(
+                  <PaginationItem key="first">
+                    <PaginationLink
+                      className="cursor-pointer"
+                      onClick={() => handlePageChange(1)}
+                      isActive={currentPage === 1}
+                    >
+                      1
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+
+                // Add ellipsis if there's a gap
+                if (startPage > 2) {
+                  pageItems.push(
+                    <PaginationItem key="ellipsis-start">
+                      <span className="px-2">...</span>
+                    </PaginationItem>
+                  );
+                }
+              }
+
+              // Add page items in the calculated range
+              for (let i = startPage; i <= endPage; i++) {
+                pageItems.push(
+                  <PaginationItem key={i}>
+                    <PaginationLink
+                      className="cursor-pointer"
+                      onClick={() => handlePageChange(i)}
+                      isActive={currentPage === i}
+                    >
+                      {i}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              }
+
+              // Add last page if not included in the range
+              if (endPage < totalPages) {
+                // Add ellipsis if there's a gap
+                if (endPage < totalPages - 1) {
+                  pageItems.push(
+                    <PaginationItem key="ellipsis-end">
+                      <span className="px-2">...</span>
+                    </PaginationItem>
+                  );
+                }
+
+                pageItems.push(
+                  <PaginationItem key="last">
+                    <PaginationLink
+                      className="cursor-pointer"
+                      onClick={() => handlePageChange(totalPages)}
+                      isActive={currentPage === totalPages}
+                    >
+                      {totalPages}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              }
+
+              return pageItems;
+            })()}
 
             <PaginationItem>
               <PaginationNext
@@ -706,37 +778,34 @@ export default function ParticipantsTable() {
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-  <Label htmlFor="create-cohort" className="text-right">
-    Cohort
-  </Label>
-  <Select
-    onValueChange={(value) => {
-      const selectedCohort = cohorts.find(
-        (cohort) => cohort.name === value
-      );
-      if (selectedCohort) {
-        handleCohortSelect({
-          id: selectedCohort.id,
-          name: selectedCohort.name,
-        });
-      }
-    }}
-  >
-    <SelectTrigger className="col-span-3">
-      <SelectValue placeholder="Select cohort" />
-    </SelectTrigger>
-    <SelectContent>
-      {cohorts.map((cohort) => (
-        <SelectItem
-          key={cohort.id}
-          value={cohort.name}
-        >
-          {cohort.name}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-</div>
+                <Label htmlFor="create-cohort" className="text-right">
+                  Cohort
+                </Label>
+                <Select
+                  onValueChange={(value) => {
+                    const selectedCohort = cohorts.find(
+                      (cohort) => cohort.name === value
+                    );
+                    if (selectedCohort) {
+                      handleCohortSelect({
+                        id: selectedCohort.id,
+                        name: selectedCohort.name,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohorts.map((cohort) => (
+                      <SelectItem key={cohort.id} value={cohort.name}>
+                        {cohort.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               {[
                 { label: "Name", key: "name" },
                 { label: "Email", key: "email" },
@@ -877,38 +946,35 @@ export default function ParticipantsTable() {
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-  <Label htmlFor="edit-cohort" className="text-right">
-    Cohort
-  </Label>
-  <Select
-    value={selectedCohort?.name || ""}
-    onValueChange={(value) => {
-      const cohortObject = cohorts.find(
-        (cohort) => cohort.name === value
-      );
-      if (cohortObject) {
-        handleCohortSelect({
-          id: cohortObject.id,
-          name: cohortObject.name
-        });
-      }
-    }}
-  >
-    <SelectTrigger className="col-span-3">
-      <SelectValue placeholder="Select cohort" />
-    </SelectTrigger>
-    <SelectContent>
-      {cohorts.map((cohort) => (
-        <SelectItem
-          key={cohort.id}
-          value={cohort.name}
-        >
-          {cohort.name}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-</div>
+                <Label htmlFor="edit-cohort" className="text-right">
+                  Cohort
+                </Label>
+                <Select
+                  value={selectedCohort?.name || ""}
+                  onValueChange={(value) => {
+                    const cohortObject = cohorts.find(
+                      (cohort) => cohort.name === value
+                    );
+                    if (cohortObject) {
+                      handleCohortSelect({
+                        id: cohortObject.id,
+                        name: cohortObject.name,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohorts.map((cohort) => (
+                      <SelectItem key={cohort.id} value={cohort.name}>
+                        {cohort.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               {[
                 { label: "Name", key: "name" },
                 { label: "Email", key: "email" },
