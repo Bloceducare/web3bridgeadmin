@@ -12,6 +12,7 @@ interface DiscountCodes {
   is_used: boolean,
   validity: string,
  claimant: string
+ created_at: string
 }
 
 interface newCode {
@@ -34,6 +35,9 @@ function page() {
   const [code, setCode] = useState("")
   const [message, setMessage] = useState<string>(""); 
   const [Valmessage, setValMessage] = useState<string>(""); 
+  const [filterDate, setFilterDate] = useState("");
+  const [filterTime, setFilterTime] = useState("");
+
 
   const [OpenOverlay, setOpenOverlay] = useState(false);
   const [token, setToken] = useState("")
@@ -107,15 +111,26 @@ function page() {
     };
 
     const [filterOption, setFilterOption] = useState("all"); 
+    
     const filteredDiscounts = discountCodes.filter((discount) => {
       const matchesSearch = discount.code.toLowerCase().includes(searchQuery.toLowerCase());
+  
+      const discountDate = new Date(discount.created_at).toISOString().split("T")[0]; 
+      const discountTime = new Date(discount.created_at).toISOString().split("T")[1].slice(0, 5); 
+  
       const matchesFilter =
-        filterOption === "all" ||
-        (filterOption === "used" && discount.is_used) ||
-        (filterOption === "unused" && !discount.is_used);
-    
-      return matchesSearch && matchesFilter;
-    });    const toggleAllDiscount = () => {
+          filterOption === "all" ||
+          (filterOption === "used" && discount.is_used) ||
+          (filterOption === "unused" && !discount.is_used);
+  
+      const matchesDate = filterDate ? discountDate === filterDate : true;
+  
+      const matchesTime = filterTime ? discountTime === filterTime : true;
+  
+      return matchesSearch && matchesFilter && matchesDate && matchesTime;
+  });
+  
+       const toggleAllDiscount = () => {
       setShowAllDiscount((prev) => !prev);
       setOpenOverlay((prev) => !prev);
     };
@@ -128,6 +143,18 @@ function page() {
       setValidateDiscount((prev) => !prev)
       setOpenOverlay((prev) => !prev);
     }
+
+    const handleCopyFilteredCodes = () => {
+      const filteredCodes = filteredDiscounts.map((discount) => discount.code).join("\n");
+    
+      if (filteredCodes) {
+        navigator.clipboard.writeText(filteredCodes);
+        alert("Filtered discount codes copied to clipboard!");
+      } else {
+        alert("No matching discount codes available.");
+      }
+    };
+    
                    
   return (
     <div className="bg-green-200 w-full  h-[200vh] p-10">
@@ -180,6 +207,7 @@ function page() {
                 </div>
 
                 {/* Search Bar */}
+                <div className='flex justify-between items-center gap-10'>
                 <input
                   type="text"
                   placeholder="Search by code...."
@@ -188,7 +216,23 @@ function page() {
                   className="w-full p-2 border border-gray-300 rounded-md mb-4"
                 />
 
-                  <select
+                <input
+        type="date"
+        value={filterDate}
+        onChange={(e) => setFilterDate(e.target.value)}
+        className="border p-2 rounded-md"
+      />
+
+<input 
+  type="time" 
+  value={filterTime} 
+  onChange={(e) => setFilterTime(e.target.value)} 
+/>
+                </div>
+              
+
+                <div className='flex justify-between mt-10'>
+                <select
                       value={filterOption}
                       onChange={(e) => setFilterOption(e.target.value)}
                       className="p-2 border border-gray-300 rounded-md"
@@ -197,6 +241,15 @@ function page() {
                       <option value="used">Used</option>
                       <option value="unused">Unused</option>
                     </select>
+
+                                  <button
+                onClick={handleCopyFilteredCodes}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+              >
+                Copy  Codes
+              </button>
+                  </div>
+                
 
                 {/* Discount Codes List */}
                 <div className="max-h-[70vh]  space-y-3 mt-4">
@@ -217,6 +270,12 @@ function page() {
                         </p>
                         <p>
                           <strong>Claimant:</strong> {discount.claimant}
+                        </p>
+                        <p>
+                        <strong>Date Created:</strong> {new Date(discount.created_at).toISOString().split("T")[0]}
+                        </p>
+                        <p>
+                        <strong>Time Created:</strong> {new Date(discount.created_at).toISOString().split("T")[1].slice(0, 5)}
                         </p>
                         <div className='flex justify-end'>
                         <button onClick={() => handleDelete(discount.id)}>{loading.delete[discount.id] ? <BeatLoader size={5} />: <Trash2 /> }</button>

@@ -29,7 +29,6 @@ export const fetchAllDiscount = async (
             setDiscountCodes(data.data);
           }
 
-          console.log(response.json())
     } catch (error) {
         console.log(error)   
     } finally {
