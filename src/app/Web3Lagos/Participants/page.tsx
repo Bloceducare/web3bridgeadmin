@@ -404,60 +404,60 @@ export default function ParticipantsTable() {
     }
   };
 
-  // Handle email sending functionality
-  const handleSendEmail = async (emailData: {
-    subject: string;
-    message: string;
-  }) => {
-    setIsLoading((prev) => ({ ...prev, email: true }));
-    try {
-      // Get the participants to email
-      const participantsToEmail = filteredParticipants.filter((p) =>
-        selectedParticipants.includes(p.id)
-      );
+  // // Handle email sending functionality
+  // const handleSendEmail = async (emailData: {
+  //   subject: string;
+  //   message: string;
+  // }) => {
+  //   setIsLoading((prev) => ({ ...prev, email: true }));
+  //   try {
+  //     // Get the participants to email
+  //     const participantsToEmail = filteredParticipants.filter((p) =>
+  //       selectedParticipants.includes(p.id)
+  //     );
 
-      const emails = participantsToEmail.map((p) => p.email);
+  //     const emails = participantsToEmail.map((p) => p.email);
 
-      const response = await fetch(
-        "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/bulk-email/send_bulk_email/",
+  //     const response = await fetch(
+  //       "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/bulk-email/send_bulk_email/",
 
-        {
-          method: "POST",
-          headers: {
-            Authorization: `${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            emails: emails,
-            subject: emailData.subject,
-            message: emailData.message,
-          }),
-        }
-      );
+  //       {
+  //         method: "POST",
+  //         headers: {
+  //           Authorization: `${token}`,
+  //           "Content-Type": "application/json",
+  //         },
+  //         body: JSON.stringify({
+  //           emails: emails,
+  //           subject: emailData.subject,
+  //           message: emailData.message,
+  //         }),
+  //       }
+  //     );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Failed to send emails: ${response.statusText}`
-        );
-      }
+  //     if (!response.ok) {
+  //       const errorData = await response.json().catch(() => ({}));
+  //       throw new Error(
+  //         errorData.message || `Failed to send emails: ${response.statusText}`
+  //       );
+  //     }
 
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.message || "Failed to send emails");
-      }
+  //     const result = await response.json();
+  //     if (!result.success) {
+  //       throw new Error(result.message || "Failed to send emails");
+  //     }
 
-      setIsEmailModalOpen(false);
-      setSelectedParticipants([]);
-      setSelectAll(false);
-      alert(`Emails sent successfully to ${emails.length} participants`);
-    } catch (error) {
-      console.error("Error sending emails:", error);
-      alert(error instanceof Error ? error.message : "Failed to send emails");
-    } finally {
-      setIsLoading((prev) => ({ ...prev, email: false }));
-    }
-  };
+  //     setIsEmailModalOpen(false);
+  //     setSelectedParticipants([]);
+  //     setSelectAll(false);
+  //     alert(`Emails sent successfully to ${emails.length} participants`);
+  //   } catch (error) {
+  //     console.error("Error sending emails:", error);
+  //     alert(error instanceof Error ? error.message : "Failed to send emails");
+  //   } finally {
+  //     setIsLoading((prev) => ({ ...prev, email: false }));
+  //   }
+  // };
 
   const openEditModal = (participant: Participant) => {
     setSelectedParticipant(participant);

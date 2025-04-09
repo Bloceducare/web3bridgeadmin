@@ -75,7 +75,7 @@ export default function CreateParticipantModal({
       registration: selectedCourse.registration,
       cohort: selectedCohort?.name,
     };
-    await onSubmit(payload);
+    await onSubmit(payload as any);
     setCreateFormData({
       name: "",
       email: "",

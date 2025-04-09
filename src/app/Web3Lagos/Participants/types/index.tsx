@@ -25,6 +25,7 @@ export interface Participant {
   id: number;
   course: Course;
   cohorts: Cohort;
+  cohort: string;
   name: string;
   wallet_address: string;
   email: string;
