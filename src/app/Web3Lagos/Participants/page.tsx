@@ -11,24 +11,9 @@ import {
 } from "@/Components/ui/table";
 import { Input } from "@/Components/ui/input";
 import { Button } from "@/Components/ui/button";
-import { Label } from "@/Components/ui/label";
-import { MdMoreHoriz, MdDelete, MdEdit, MdAdd } from "react-icons/md";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/Components/ui/dialog";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/Components/ui/pagination";
+import { MdMoreHoriz, MdDelete, MdEdit, MdAdd, MdEmail } from "react-icons/md";
+import { Checkbox } from "@/Components/ui/checkbox";
+
 import {
   Select,
   SelectContent,
@@ -36,6 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
+
+import TablePagination from "./pagination";
+import CreateParticipantModal from "./CreateParticipantModal";
+import EditParticipantModal from "./EditParticipantModal";
+import DeleteParticipantModal from "./DeleteParticipantModal";
+// import SendEmailModal from "./SendEmail";
 
 interface Course {
   id: number;
@@ -78,6 +69,7 @@ interface Participant {
   payment_status: boolean;
   registration: number;
   number: string;
+  created_at?: string | Date;
 }
 
 interface ApiResponse {
@@ -96,6 +88,10 @@ export default function ParticipantsTable() {
     Participant[]
   >([]);
   const [search, setSearch] = useState("");
+  const [cohortFilter, setCohortFilter] = useState<string | null>(null);
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string | null>(
+    null
+  );
   const [selectedParticipant, setSelectedParticipant] =
     useState<Participant | null>(null);
   const [token, setToken] = useState("");
@@ -103,47 +99,25 @@ export default function ParticipantsTable() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState<Partial<Participant>>({});
+  // New state for selected participants and email modal
+  const [selectedParticipants, setSelectedParticipants] = useState<number[]>(
+    []
+  );
+  const [selectAll, setSelectAll] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState({
     edit: false,
     delete: false,
     fetch: true,
     create: false,
+    email: false,
   });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [createFormData, setCreateFormData] = useState<Partial<Participant>>({
-    name: "",
-    email: "",
-    wallet_address: "",
-    github: "",
-    city: "",
-    state: "",
-    country: "",
-    gender: "",
-    motivation: "",
-    achievement: "",
-    payment_status: false,
-    registration: undefined,
-    number: "",
-  });
+
   const [courses, setCourses] = useState<Course[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<{
-    id: number;
-    registration: number;
-  } | null>(null);
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
-  const [selectedCohort, setSelectedCohort] = useState<{
-    id: number;
-    name: string;
-  } | null>(null);
+  const [uniqueCohorts, setUniqueCohorts] = useState<string[]>([]);
 
-  const handleCourseSelect = (course: { id: number; registration: number }) => {
-    setSelectedCourse(course);
-  };
-
-  const handleCohortSelect = (cohort: { id: number; name: string }) => {
-    setSelectedCohort(cohort);
-  };
   const fetchCohorts = async () => {
     try {
       const response = await fetch(
@@ -207,22 +181,10 @@ export default function ParticipantsTable() {
     }
   }, [token]);
 
-  const handleCreate = async () => {
+  const handleCreate = async (newParticipantData: Partial<Participant>) => {
     setIsLoading((prev) => ({ ...prev, create: true }));
-    if (!selectedCourse) {
-      alert("Please select a course first");
-      setIsLoading((prev) => ({ ...prev, create: false }));
-      return;
-    }
 
     try {
-      const payload = {
-        ...createFormData,
-        course: selectedCourse.id,
-        registration: selectedCourse.registration,
-        cohort: selectedCohort?.name,
-      };
-
       const response = await fetch(
         "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/",
         {
@@ -231,7 +193,7 @@ export default function ParticipantsTable() {
             Authorization: `${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(newParticipantData),
         }
       );
 
@@ -251,22 +213,6 @@ export default function ParticipantsTable() {
       setParticipants((prev) => [...prev, newParticipant]);
       setFilteredParticipants((prev) => [...prev, newParticipant]);
       setIsCreateModalOpen(false);
-      setCreateFormData({
-        name: "",
-        email: "",
-        wallet_address: "",
-        github: "",
-        city: "",
-        state: "",
-        country: "",
-        gender: "",
-        motivation: "",
-        achievement: "",
-        payment_status: false,
-        number: "",
-      });
-      setSelectedCourse(null);
-      setSelectedCohort(null);
       alert("Participant created successfully");
     } catch (error) {
       console.error("Error creating participant:", error);
@@ -317,6 +263,16 @@ export default function ParticipantsTable() {
 
         setParticipants(allResults);
         setFilteredParticipants(allResults);
+
+        // Extract unique cohort names for filtering
+        const cohortSet = new Set<string>();
+        allResults.forEach((p) => {
+          if (p.cohort) {
+            cohortSet.add(p.cohort);
+          }
+        });
+        const cohorts = Array.from(cohortSet);
+        setUniqueCohorts(cohorts);
       } catch (error) {
         console.error("Error fetching participants:", error);
         alert("Failed to fetch participants");
@@ -329,14 +285,36 @@ export default function ParticipantsTable() {
   }, [token]);
 
   useEffect(() => {
-    const filtered = participants.filter(
-      (p) =>
-        p?.name.toLowerCase().includes(search.toLowerCase()) ||
-        p?.email.toLowerCase().includes(search.toLowerCase())
-    );
+    let filtered = participants;
+
+    // Filter by name, email, created_at, or registration
+    if (search) {
+      filtered = filtered.filter(
+        (p) =>
+          p?.name?.toLowerCase().includes(search.toLowerCase()) ||
+          p?.email?.toLowerCase().includes(search.toLowerCase()) ||
+          (p?.created_at && p.created_at.toString().includes(search)) ||
+          (p?.registration && p.registration.toString().includes(search))
+      );
+    }
+
+    // Filter by cohort
+    if (cohortFilter) {
+      filtered = filtered.filter((p) => p.cohort === cohortFilter);
+    }
+
+    // Filter by payment status
+    if (paymentStatusFilter) {
+      const isPaid = paymentStatusFilter === "paid";
+      filtered = filtered.filter((p) => p.payment_status === isPaid);
+    }
+
     setFilteredParticipants(filtered);
     setCurrentPage(1);
-  }, [search, participants]);
+    // Reset selections when filters change
+    setSelectedParticipants([]);
+    setSelectAll(false);
+  }, [search, cohortFilter, paymentStatusFilter, participants]);
 
   const handleEdit = async (updatedData: Partial<Participant>) => {
     if (!selectedParticipant) return;
@@ -426,43 +404,63 @@ export default function ParticipantsTable() {
     }
   };
 
+  // Handle email sending functionality
+  const handleSendEmail = async (emailData: {
+    subject: string;
+    message: string;
+  }) => {
+    setIsLoading((prev) => ({ ...prev, email: true }));
+    try {
+      // Get the participants to email
+      const participantsToEmail = filteredParticipants.filter((p) =>
+        selectedParticipants.includes(p.id)
+      );
+
+      const emails = participantsToEmail.map((p) => p.email);
+
+      const response = await fetch(
+        "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/bulk-email/send_bulk_email/",
+
+        {
+          method: "POST",
+          headers: {
+            Authorization: `${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            emails: emails,
+            subject: emailData.subject,
+            message: emailData.message,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to send emails: ${response.statusText}`
+        );
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || "Failed to send emails");
+      }
+
+      setIsEmailModalOpen(false);
+      setSelectedParticipants([]);
+      setSelectAll(false);
+      alert(`Emails sent successfully to ${emails.length} participants`);
+    } catch (error) {
+      console.error("Error sending emails:", error);
+      alert(error instanceof Error ? error.message : "Failed to send emails");
+    } finally {
+      setIsLoading((prev) => ({ ...prev, email: false }));
+    }
+  };
+
   const openEditModal = (participant: Participant) => {
     setSelectedParticipant(participant);
-
-    // Set the selected course from the participant's current course
-    if (participant.course && typeof participant.course === "object") {
-      setSelectedCourse({
-        id: participant.course.id,
-        registration: participant.course.registration,
-      });
-    }
-
-    // Find the corresponding cohort object from the cohorts array
-    const participantCohort = cohorts.find(
-      (c) => c.cohort === participant.cohort || c.name === participant.cohort
-    );
-
-    if (participantCohort) {
-      setSelectedCohort({
-        id: participantCohort.id,
-        name: participantCohort.name,
-      });
-    }
-
-    setEditFormData({
-      name: participant.name,
-      email: participant.email,
-      wallet_address: participant.wallet_address,
-      github: participant.github,
-      city: participant.city,
-      state: participant.state,
-      country: participant.country,
-      gender: participant.gender,
-      motivation: participant.motivation,
-      achievement: participant.achievement,
-      payment_status: participant.payment_status,
-      number: participant.number,
-    });
     setIsEditModalOpen(true);
   };
 
@@ -476,25 +474,29 @@ export default function ParticipantsTable() {
       handleDelete(selectedParticipant.id);
     }
   };
-  const saveEdit = async () => {
-    if (selectedParticipant) {
-      // Create a copy of the edit form data
-      const dataToSend = { ...editFormData };
 
-      // Prepare the data for API
-      let apiData: any = { ...dataToSend };
+  const resetFilters = () => {
+    setSearch("");
+    setCohortFilter(null);
+    setPaymentStatusFilter(null);
+    setFilteredParticipants(participants);
+  };
 
-      // Set the course ID correctly
-      if (selectedCourse) {
-        apiData.course = selectedCourse.id;
-      }
+  // Handle checkbox selection
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedParticipants([]);
+    } else {
+      setSelectedParticipants(currentItems.map((p) => p.id));
+    }
+    setSelectAll(!selectAll);
+  };
 
-      // Use the cohort name as the value to send to the API
-      if (selectedCohort) {
-        apiData.cohort = selectedCohort.name;
-      }
-
-      await handleEdit(apiData);
+  const toggleSelectParticipant = (id: number) => {
+    if (selectedParticipants.includes(id)) {
+      setSelectedParticipants((prev) => prev.filter((pId) => pId !== id));
+    } else {
+      setSelectedParticipants((prev) => [...prev, id]);
     }
   };
 
@@ -536,13 +538,56 @@ export default function ParticipantsTable() {
           Add Participant
         </Button>
 
-        <div className="w-1/3">
+        <div className="flex items-center gap-2 w-2/3">
+          {/* Search Input */}
           <Input
-            placeholder="Filter by name or email"
+            placeholder="Filter by name, email, date registered or registration"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="py-2 px-4"
           />
+
+          {/* Cohort Filter */}
+          <Select
+            value={cohortFilter || undefined}
+            onValueChange={setCohortFilter}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Filter by cohort" />
+            </SelectTrigger>
+            <SelectContent>
+              {uniqueCohorts.map((cohort) => (
+                <SelectItem key={cohort} value={cohort}>
+                  {cohort}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Payment Status Filter */}
+          <Select
+            value={paymentStatusFilter || undefined}
+            onValueChange={setPaymentStatusFilter}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by payment" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Reset Filters Button */}
+          {(cohortFilter || paymentStatusFilter) && (
+            <Button
+              variant="outline"
+              onClick={resetFilters}
+              className="flex items-center gap-1"
+            >
+              Clear Filters
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center space-x-2">
@@ -565,59 +610,119 @@ export default function ParticipantsTable() {
         </div>
       </div>
 
+      {/* Bulk actions section */}
+      {selectedParticipants.length > 0 && (
+        <div className="flex items-center justify-between bg-blue-50 p-2 rounded mb-2">
+          <span className="text-sm font-medium">
+            {selectedParticipants.length} participants selected
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedParticipants([])}
+            >
+              Clear Selection
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsEmailModalOpen(true)}
+              className="flex items-center gap-1"
+            >
+              <MdEmail size={16} />
+              Send Email
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="text-sm text-gray-500 mb-2">
+        Showing {currentItems.length} of {filteredParticipants.length}{" "}
+        participants
+        {(search || cohortFilter || paymentStatusFilter) && " (filtered)"}
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-12">
+              <Checkbox
+                checked={selectAll}
+                onCheckedChange={toggleSelectAll}
+                aria-label="Select all participants"
+              />
+            </TableHead>
             <TableHead>S/N</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Cohort</TableHead>
             <TableHead>Course</TableHead>
+            <TableHead>Payment Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {currentItems.map((participant, index) => {
-            const { id, name, email, course, cohort } = participant;
+            const { id, name, email, course, cohort, payment_status } =
+              participant;
             const serialNumber = indexOfFirstItem + index + 1;
+            const isSelected = selectedParticipants.includes(id);
+
             return (
-              <TableRow key={id}>
+              <TableRow key={id} className={isSelected ? "bg-blue-50" : ""}>
+                <TableCell>
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelectParticipant(id)}
+                    aria-label={`Select ${name}`}
+                  />
+                </TableCell>
+
                 <TableCell>{serialNumber}</TableCell>
                 <TableCell>{name}</TableCell>
                 <TableCell>{email}</TableCell>
                 <TableCell>{cohort}</TableCell>
                 <TableCell>{course?.name || "No Course"}</TableCell>
                 <TableCell>
-                
-                  <TableCell>
-                    <div className="relative group">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${
+                      payment_status
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {payment_status ? "Paid" : "Unpaid"}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <div className="relative group">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setSelectedParticipant(participant)}
+                      className="group-hover:opacity-0"
+                    >
+                      <MdMoreHoriz size={20} />
+                    </Button>
+                    <div className="absolute top-0 right-0 hidden group-hover:flex items-center space-x-2">
                       <Button
-                        variant="ghost"
-                        onClick={() => setSelectedParticipant(participant)}
-                        className="group-hover:opacity-0"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditModal(participant)}
+                        className="hover:bg-gray-100"
                       >
-                        <MdMoreHoriz size={20} />
+                        <MdEdit size={16} />
                       </Button>
-                      <div className="absolute top-0 right-0 hidden group-hover:flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditModal(participant)}
-                          className="hover:bg-gray-100"
-                        >
-                          <MdEdit size={16} />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => openDeleteModal(participant)}
-                          className="hover:bg-red-600"
-                        >
-                          <MdDelete size={16} />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => openDeleteModal(participant)}
+                        className="hover:bg-red-600"
+                      >
+                        <MdDelete size={16} />
+                      </Button>
                     </div>
-                  </TableCell>
+                  </div>
                 </TableCell>
               </TableRow>
             );
@@ -626,477 +731,53 @@ export default function ParticipantsTable() {
       </Table>
 
       <div className="flex justify-center mt-4">
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
-                className={`cursor-pointer ${
-                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
-                }`}
-              />
-            </PaginationItem>
-
-            {/* Logic to only show current page and one page on each side (when available) */}
-            {(() => {
-              const pageItems = [];
-
-              // Calculate start and end page numbers to display
-              let startPage = Math.max(currentPage - 1, 1);
-              let endPage = Math.min(startPage + 1, totalPages);
-
-              // Ensure we always show 2 pages when possible
-              if (endPage - startPage < 1 && totalPages > 1) {
-                if (currentPage === totalPages) {
-                  startPage = Math.max(totalPages - 1, 1);
-                } else {
-                  endPage = Math.min(startPage + 1, totalPages);
-                }
-              }
-
-              // Add first page if not included in the range
-              if (startPage > 1) {
-                pageItems.push(
-                  <PaginationItem key="first">
-                    <PaginationLink
-                      className="cursor-pointer"
-                      onClick={() => handlePageChange(1)}
-                      isActive={currentPage === 1}
-                    >
-                      1
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-
-                // Add ellipsis if there's a gap
-                if (startPage > 2) {
-                  pageItems.push(
-                    <PaginationItem key="ellipsis-start">
-                      <span className="px-2">...</span>
-                    </PaginationItem>
-                  );
-                }
-              }
-
-              // Add page items in the calculated range
-              for (let i = startPage; i <= endPage; i++) {
-                pageItems.push(
-                  <PaginationItem key={i}>
-                    <PaginationLink
-                      className="cursor-pointer"
-                      onClick={() => handlePageChange(i)}
-                      isActive={currentPage === i}
-                    >
-                      {i}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              }
-
-              // Add last page if not included in the range
-              if (endPage < totalPages) {
-                // Add ellipsis if there's a gap
-                if (endPage < totalPages - 1) {
-                  pageItems.push(
-                    <PaginationItem key="ellipsis-end">
-                      <span className="px-2">...</span>
-                    </PaginationItem>
-                  );
-                }
-
-                pageItems.push(
-                  <PaginationItem key="last">
-                    <PaginationLink
-                      className="cursor-pointer"
-                      onClick={() => handlePageChange(totalPages)}
-                      isActive={currentPage === totalPages}
-                    >
-                      {totalPages}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              }
-
-              return pageItems;
-            })()}
-
-            <PaginationItem>
-              <PaginationNext
-                onClick={() =>
-                  handlePageChange(Math.min(totalPages, currentPage + 1))
-                }
-                className={`cursor-pointer ${
-                  currentPage === totalPages
-                    ? "pointer-events-none opacity-50"
-                    : ""
-                }`}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
       </div>
 
       {/* Create Modal */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-none">
-            <DialogTitle>Create New Participant</DialogTitle>
-            <DialogDescription>
-              Enter the details for the new participant
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto pr-2 my-4">
-            <div className="grid gap-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="create-course" className="text-right">
-                  Course
-                </Label>
-                <Select
-                  onValueChange={(value) => {
-                    const selectedCourse = courses.find(
-                      (course) => course.name === value
-                    );
-                    if (selectedCourse) {
-                      handleCourseSelect({
-                        id: selectedCourse.id,
-                        registration: selectedCourse.registration,
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses.map((course) => (
-                      <SelectItem key={course.id} value={course.name}>
-                        {course.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="create-cohort" className="text-right">
-                  Cohort
-                </Label>
-                <Select
-                  onValueChange={(value) => {
-                    const selectedCohort = cohorts.find(
-                      (cohort) => cohort.name === value
-                    );
-                    if (selectedCohort) {
-                      handleCohortSelect({
-                        id: selectedCohort.id,
-                        name: selectedCohort.name,
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select cohort" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cohorts.map((cohort) => (
-                      <SelectItem key={cohort.id} value={cohort.name}>
-                        {cohort.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {[
-                { label: "Name", key: "name" },
-                { label: "Email", key: "email" },
-                { label: "Wallet Address", key: "wallet_address" },
-                { label: "GitHub", key: "github" },
-                { label: "City", key: "city" },
-                { label: "State", key: "state" },
-                { label: "Country", key: "country" },
-                { label: "Motivation", key: "motivation" },
-                { label: "Achievement", key: "achievement" },
-                { label: "Phone Number", key: "number" },
-              ].map(({ label, key }) => (
-                <div key={key} className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor={`create-${key}`} className="text-right">
-                    {label}
-                  </Label>
-                  <Input
-                    id={`create-${key}`}
-                    value={String(
-                      createFormData[key as keyof Participant] || ""
-                    )}
-                    onChange={(e) =>
-                      setCreateFormData((prev) => ({
-                        ...prev,
-                        [key]: e.target.value,
-                      }))
-                    }
-                    className="col-span-3"
-                  />
-                </div>
-              ))}
-
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="create-gender" className="text-right">
-                  Gender
-                </Label>
-                <Select
-                  value={createFormData.gender}
-                  onValueChange={(value) =>
-                    setCreateFormData((prev) => ({
-                      ...prev,
-                      gender: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="create-payment_status" className="text-right">
-                  Payment Status
-                </Label>
-                <Select
-                  value={createFormData.payment_status ? "true" : "false"}
-                  onValueChange={(value) =>
-                    setCreateFormData((prev) => ({
-                      ...prev,
-                      payment_status: value === "true",
-                    }))
-                  }
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select payment status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">Paid</SelectItem>
-                    <SelectItem value="false">Unpaid</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="flex-none border-t pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsCreateModalOpen(false)}
-              disabled={isLoading.create}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={isLoading.create}
-              className="bg-primary"
-            >
-              {isLoading.create ? "Creating..." : "Create Participant"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateParticipantModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={handleCreate}
+        courses={courses}
+        cohorts={cohorts}
+        isLoading={isLoading.create}
+      />
 
       {/* Edit Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-none">
-            <DialogTitle>Edit Participant</DialogTitle>
-            <DialogDescription>Update participant details</DialogDescription>
-          </DialogHeader>
+      <EditParticipantModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        participant={selectedParticipant}
+        onSubmit={handleEdit}
+        courses={courses}
+        cohorts={cohorts}
+        isLoading={isLoading.edit}
+      />
 
-          <div className=" flex-1 overflow-y-auto pr-2 my-4">
-            <div className="grid gap-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-course" className="text-right">
-                  Course
-                </Label>
-                <Select
-                  defaultValue={selectedParticipant?.course.name}
-                  onValueChange={(value) => {
-                    const selectedCourse = courses.find(
-                      (course) => course.name === value
-                    );
-                    if (selectedCourse) {
-                      handleCourseSelect({
-                        id: selectedCourse.id,
-                        registration: selectedCourse.registration,
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses.map((course) => (
-                      <SelectItem key={course.id} value={course.name}>
-                        {course.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-cohort" className="text-right">
-                  Cohort
-                </Label>
-                <Select
-                  value={selectedCohort?.name || ""}
-                  onValueChange={(value) => {
-                    const cohortObject = cohorts.find(
-                      (cohort) => cohort.name === value
-                    );
-                    if (cohortObject) {
-                      handleCohortSelect({
-                        id: cohortObject.id,
-                        name: cohortObject.name,
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select cohort" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cohorts.map((cohort) => (
-                      <SelectItem key={cohort.id} value={cohort.name}>
-                        {cohort.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {[
-                { label: "Name", key: "name" },
-                { label: "Email", key: "email" },
-                { label: "Wallet Address", key: "wallet_address" },
-                { label: "GitHub", key: "github" },
-                { label: "City", key: "city" },
-                { label: "State", key: "state" },
-                { label: "Country", key: "country" },
-                { label: "Motivation", key: "motivation" },
-                { label: "Achievement", key: "achievement" },
-                { label: "Phone Number", key: "number" },
-              ].map(({ label, key }) => (
-                <div key={key} className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor={key} className="text-right">
-                    {label}
-                  </Label>
-                  <Input
-                    id={key}
-                    value={String(editFormData[key as keyof Participant] || "")}
-                    onChange={(e) =>
-                      setEditFormData((prev) => ({
-                        ...prev,
-                        [key]: e.target.value,
-                      }))
-                    }
-                    className="col-span-3"
-                  />
-                </div>
-              ))}
+      {/* Delete Modal */}
+      <DeleteParticipantModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onDelete={confirmDelete}
+        isLoading={isLoading.delete}
+      />
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-gender" className="text-right">
-                  Gender
-                </Label>
-                <Select
-                  value={editFormData.gender}
-                  onValueChange={(value) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      gender: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* Email Modal */}
+{/*       
+      <SendEmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        onSend={handleSendEmail}
+        recipientCount={selectedParticipants.length}
+        isLoading={isLoading.email}
+      />
+       */}
 
-              {/* Payment Status Dropdown */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-payment_status" className="text-right">
-                  Payment Status
-                </Label>
-                <Select
-                  value={editFormData.payment_status ? "true" : "false"}
-                  onValueChange={(value) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      payment_status: value === "true",
-                    }))
-                  }
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select payment status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">Paid</SelectItem>
-                    <SelectItem value="false">Unpaid</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="flex-none border-t pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsEditModalOpen(false)}
-              disabled={isLoading.edit}
-            >
-              Cancel
-            </Button>
-            <Button onClick={saveEdit} disabled={isLoading.edit}>
-              {isLoading.edit ? "Updating..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Modal */}
-      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Delete</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this participant?
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteModalOpen(false)}
-              disabled={isLoading.delete}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-              disabled={isLoading.delete}
-            >
-              {isLoading.delete ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }
