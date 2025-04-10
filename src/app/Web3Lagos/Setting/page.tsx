@@ -111,7 +111,6 @@ function page() {
     };
 
     const [filterOption, setFilterOption] = useState("all"); 
-    
     const filteredDiscounts = discountCodes.filter((discount) => {
       const matchesSearch = discount.code.toLowerCase().includes(searchQuery.toLowerCase());
   
