@@ -77,7 +77,6 @@ function Page() {
       return;
     }
 
-    // Convert the plain text message into sanitized HTML.
     const htmlMessage = processMessage(message);
 
     const ids = filteredParticipants.map(p => p.id);
@@ -86,35 +85,35 @@ function Page() {
     const messageData = {
       receipents: ids,
       subject: subject,
-      message: htmlMessage, // now sending HTML message
+      message: htmlMessage, 
     };
 
     console.log("Message Data:", messageData);
 
-    // try {
-    //   const response = await fetch(
-    //     // 'https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/bulk-email/send_bulk_email/',
-    //     {
-    //       method: 'POST',
-    //       headers: {
-    //         'Content-Type': 'application/json',
-    //         Authorization: `Bearer ${token}`,
-    //       },
-    //       body: JSON.stringify(messageData),
-    //     }
-    //   );
+    try {
+      const response = await fetch(
+        'https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/bulk-email/send_bulk_email/',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(messageData),
+        }
+      );
 
-    //   if (response.ok) {
-    //     setMessage('');
-    //     setStatusMessage('Message sent successfully!');
-    //     setIsSuccess(true);
-    //   } else {
-    //     throw new Error('Failed to send message');
-    //   }
-    // } catch (error) {
-    //   setStatusMessage('Error sending message. Please try again.');
-    //   setIsSuccess(false);
-    // }
+      if (response.ok) {
+        setMessage('');
+        setStatusMessage('Message sent successfully!');
+        setIsSuccess(true);
+      } else {
+        throw new Error('Failed to send message');
+      }
+    } catch (error) {
+      setStatusMessage('Error sending message. Please try again.');
+      setIsSuccess(false);
+    }
   };
 
   return (
@@ -183,8 +182,10 @@ function Page() {
 
               <div className='space-y-4'>
                 <h1>Select Payment Status</h1>
-                {/* Here is the radio input for payment status */}
                 <div className="flex space-x-4">
+
+
+                  
                   <label className="flex items-center space-x-1">
                     <input
                       type="radio"
