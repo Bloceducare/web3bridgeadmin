@@ -20,7 +20,6 @@ function Page() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState({ other: true });
 
-  // Convert plain text to HTML by wrapping each line with <p></p>
   const convertToHTML = (text: string): string => {
     return text
       .split('\n')

@@ -40,6 +40,7 @@ export interface Participant {
     payment_status: boolean;
     registration: number;
     number: string;
+    created_at: string;
   }
   
   
