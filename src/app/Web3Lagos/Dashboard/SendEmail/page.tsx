@@ -5,6 +5,11 @@ import DOMPurify from 'dompurify';
 import { Participant } from '@/hooks/interface';
 import { useParticipantsStore } from '@/stores/useParticipantsStore';
 import { fetchCohorts } from '@/hooks/useUpdateCourse';
+import dynamic from "next/dynamic";
+import "react-quill/dist/quill.snow.css";
+
+const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
+
 
 function Page() {
   const [message, setMessage] = useState('');
@@ -27,7 +32,6 @@ function Page() {
       .join('');
   };
 
-  // Process message: convert to HTML then sanitize it
   const processMessage = (rawMessage: string): string => {
     const html = convertToHTML(rawMessage);
     return DOMPurify.sanitize(html);
@@ -84,7 +88,7 @@ function Page() {
     const messageData = {
       receipents: ids,
       subject: subject,
-      message: htmlMessage, 
+      message: message, 
     };
 
     console.log("Message Data:", messageData);
@@ -145,14 +149,34 @@ function Page() {
 
           <div className='flex flex-col gap-4'>
             <label className='text-black'>Write your message</label>
-            <textarea
-              placeholder="Write your message"
-              value={message}
-              onChange={handleChange}
-              className="w-full h-[25vh] p-4 border-2 border-gray-300 rounded-lg outline-none resize-none"
-            />
-            <p>Compose the email message that will be sent to the recipients</p>
+             <ReactQuill
+            theme="snow"
+            value={message}
+            onChange={setMessage}
+            placeholder="Write your email here..."
+            modules={{
+              toolbar: [
+                [{ header: [1, 2, 3, false] }],
+                ["bold", "italic", "underline", "strike"],
+                [{ size: [] }],
+                [{ color: [] }, { background: [] }],
+                [{ list: "ordered" }, { list: "bullet" }],
+                ["link", "clean"],
+              ],
+            }}
+        formats={[
+          "header",
+          "bold", "italic", "underline", "strike",
+          "size", "color", "background",
+          "list", "bullet",
+          "link",
+        ]}
+        className="bg-white h-[30vh] mb-10"
+      />
+
           </div>
+
+          <p className='mt-10'>Compose the email message that will be sent to the recipients</p>
 
           <section className='bg-gray-300 px-10 py-7 rounded-lg'>
             <div className='text-2xl font-semibold'>
@@ -242,7 +266,6 @@ function Page() {
         </div>
       </section>
 
-      {/* Status Message */}
       <div className='flex justify-center mt-5'>
         {statusMessage && (
           <div
