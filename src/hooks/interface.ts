@@ -52,3 +52,19 @@ export interface ApiResponse {
       results: Participant[];
     };
   }
+
+
+  export interface Image {
+    id: number;
+    image: string;
+  }
+
+export interface Program {
+    id: number;
+    name: string;
+    description: string;
+    venue: string[];
+    extra_info: string;
+    images: Image[]; 
+    status: boolean;
+  }

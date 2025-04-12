@@ -63,8 +63,6 @@ export const fetchPrograms = async (
   }
 };
 
-
-
 export const handleUpdateCourseButton = async(
   id: number,
   token: string,
@@ -118,8 +116,6 @@ export const handleUpdateCourseButton = async(
 
 
 }
-
-
 
 export const handleUpdateCourse = async (
   id: number,
@@ -194,7 +190,6 @@ export const handleUpdateCourse = async (
   }
 };
 
-
 export const handleDeleteCourse = async ( 
   id: number,
   token: string,
@@ -224,4 +219,38 @@ export const handleDeleteCourse = async (
     console.error("Error deleting the course:", error);
     setDelMessage("Error deleting the Course");
   } 
+};
+
+
+export const fetchCohorts = async (
+  token: string,
+  setRegistration: (data: any) => void,
+  setError: (message: string) => void,
+  setLoading: (value: (prev: any) => any) => void
+) => {
+  try {
+    const response = await fetch(
+      `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/all/`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setRegistration(data.data);
+    } else {
+      setError(`Failed to fetch programs: ${data.message || "Unknown error"}`);
+    }
+  } catch (error) {
+    setError("Error fetching data");
+    console.error("Error fetching data:", error);
+  } finally {
+    setLoading((prev) => ({ ...prev, other: false }));
+  }
 };
