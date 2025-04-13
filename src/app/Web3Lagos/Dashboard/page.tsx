@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { ScaleLoader, BeatLoader } from "react-spinners";
 import { Trash2, Pencil } from 'lucide-react';
 import { handleUpdateCourse, handleUpdateCourseButton, handleDeleteCourse, fetchPrograms } from "@/hooks/useUpdateCourse";
+import { useParticipants } from '@/hooks/participants';
+import { useParticipantsStore } from "@/stores/useParticipantsStore";
 
 
 interface Image {
@@ -102,6 +104,8 @@ export default function Dashboard() {
   const [selectedPrograms, setSelectedPrograms] = useState<number[]>([]);
   const [isCourseOpen, setIsCourseOpen] = useState< {[key: number]: boolean}>({})
   const [isUpdateOpen, setIsUpdateOpen] = useState<boolean>(false); 
+  const { fetchParticipants } = useParticipants();
+  const { participants, } = useParticipantsStore();
   
 
   
@@ -110,6 +114,12 @@ export default function Dashboard() {
     setToken(token)
     fetchPrograms(token,  setPrograms, setIsCourseOpen, setError, setLoading);
   }, []);
+
+  useEffect(() => {
+    if (participants.length === 0) {
+      fetchParticipants(token);
+    }
+  }, [participants.length, fetchParticipants, token]);
 
   useEffect(() => {
 

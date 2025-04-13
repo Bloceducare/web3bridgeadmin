@@ -13,6 +13,8 @@ import { Input } from "@/Components/ui/input";
 import { Button } from "@/Components/ui/button";
 import { MdMoreHoriz, MdDelete, MdEdit, MdAdd, MdEmail } from "react-icons/md";
 import { Checkbox } from "@/Components/ui/checkbox";
+import { useParticipantsStore } from '@/stores/useParticipantsStore';
+import { Participant } from '@/hooks/interface';
 
 import {
   Select,
@@ -50,40 +52,8 @@ interface Cohort {
   registration: number;
 }
 
-interface Participant {
-  id: number;
-  course: Course;
-  cohorts: Cohort;
-  cohort: string;
-  name: string;
-  wallet_address: string;
-  email: string;
-  status: string;
-  motivation: string;
-  achievement: string;
-  city: string;
-  state: string;
-  country: string;
-  gender: string;
-  github: string;
-  payment_status: boolean;
-  registration: number;
-  number: string;
-  created_at?: string | Date;
-}
-
-interface ApiResponse {
-  success: boolean;
-  data: {
-    count: number;
-    next: null | string;
-    previous: null | string;
-    results: Participant[];
-  };
-}
-
 export default function ParticipantsTable() {
-  const [participants, setParticipants] = useState<Participant[]>([]);
+   const { participants, loading } = useParticipantsStore();
   const [filteredParticipants, setFilteredParticipants] = useState<
     Participant[]
   >([]);
@@ -210,7 +180,7 @@ export default function ParticipantsTable() {
       }
 
       const newParticipant = result.data;
-      setParticipants((prev) => [...prev, newParticipant]);
+      // setParticipants((prev) => [...prev, newParticipant]);
       setFilteredParticipants((prev) => [...prev, newParticipant]);
       setIsCreateModalOpen(false);
       alert("Participant created successfully");
@@ -229,60 +199,7 @@ export default function ParticipantsTable() {
     if (storedToken) setToken(storedToken);
   }, []);
 
-  useEffect(() => {
-    if (!token) return;
-
-    const fetchAllParticipants = async () => {
-      setIsLoading((prev) => ({ ...prev, fetch: true }));
-      try {
-        let allResults: Participant[] = [];
-        let nextUrl: string | null =
-          "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/all/";
-
-        while (nextUrl) {
-          const response = await fetch(nextUrl, {
-            method: "GET",
-            headers: {
-              Authorization: `${token}`,
-              "Content-Type": "application/json",
-            },
-            cache: "no-store",
-          });
-
-          if (!response.ok)
-            throw new Error(`API call failed: ${response.statusText}`);
-
-          const result: ApiResponse = await response.json();
-          if (result.success) {
-            allResults = [...allResults, ...result.data.results];
-            nextUrl = result.data.next;
-          } else {
-            throw new Error("Failed to fetch participants");
-          }
-        }
-
-        setParticipants(allResults);
-        setFilteredParticipants(allResults);
-
-        // Extract unique cohort names for filtering
-        const cohortSet = new Set<string>();
-        allResults.forEach((p) => {
-          if (p.cohort) {
-            cohortSet.add(p.cohort);
-          }
-        });
-        const cohorts = Array.from(cohortSet);
-        setUniqueCohorts(cohorts);
-      } catch (error) {
-        console.error("Error fetching participants:", error);
-        alert("Failed to fetch participants");
-      } finally {
-        setIsLoading((prev) => ({ ...prev, fetch: false }));
-      }
-    };
-
-    fetchAllParticipants();
-  }, [token]);
+  
 
   useEffect(() => {
     let filtered = participants;
@@ -347,11 +264,11 @@ export default function ParticipantsTable() {
 
       const updatedParticipant = result.data;
 
-      setParticipants((prev) =>
-        prev.map((p) =>
-          p.id === selectedParticipant.id ? updatedParticipant : p
-        )
-      );
+      // setParticipants((prev) =>
+      //   prev.map((p) =>
+      //     p.id === selectedParticipant.id ? updatedParticipant : p
+      //   )
+      // );
       setFilteredParticipants((prev) =>
         prev.map((p) =>
           p.id === selectedParticipant.id ? updatedParticipant : p
@@ -390,7 +307,7 @@ export default function ParticipantsTable() {
         );
       }
 
-      setParticipants((prev) => prev.filter((p) => p.id !== id));
+      // setParticipants((prev) => prev.filter((p) => p.id !== id));
       setFilteredParticipants((prev) => prev.filter((p) => p.id !== id));
       setIsDeleteModalOpen(false);
       alert("Participant deleted successfully");
@@ -517,13 +434,15 @@ export default function ParticipantsTable() {
     setCurrentPage(1);
   };
 
-  if (isLoading.fetch) {
+  if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
         Loading...
       </div>
     );
   }
+
+  console.log(participants)
 
   return (
     <main className="p-4 w-full space-y-4">

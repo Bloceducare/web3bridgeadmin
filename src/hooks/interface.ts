@@ -40,6 +40,7 @@ export interface Participant {
     payment_status: boolean;
     registration: number;
     number: string;
+    created_at: string;
   }
   
   
@@ -51,4 +52,20 @@ export interface ApiResponse {
       previous: null | string;
       results: Participant[];
     };
+  }
+
+
+  export interface Image {
+    id: number;
+    image: string;
+  }
+
+export interface Program {
+    id: number;
+    name: string;
+    description: string;
+    venue: string[];
+    extra_info: string;
+    images: Image[]; 
+    status: boolean;
   }
