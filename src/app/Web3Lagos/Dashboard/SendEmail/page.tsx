@@ -86,7 +86,7 @@ function Page() {
     console.log("Filtered IDs:", ids);
 
     const messageData = {
-      receipents: ids,
+      recipients: ids,
       subject: subject,
       message: message, 
     };
