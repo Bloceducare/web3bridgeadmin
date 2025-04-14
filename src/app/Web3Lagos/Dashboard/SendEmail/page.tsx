@@ -88,7 +88,7 @@ function Page() {
     const messageData = {
       recipients: ids,
       subject: subject,
-      message: message, 
+      body: message, 
     };
 
     console.log("Message Data:", messageData);
