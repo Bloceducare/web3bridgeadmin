@@ -15,6 +15,7 @@ import { MdMoreHoriz, MdDelete, MdEdit, MdAdd, MdEmail } from "react-icons/md";
 import { Checkbox } from "@/Components/ui/checkbox";
 import { useParticipantsStore } from '@/stores/useParticipantsStore';
 import { Participant } from '@/hooks/interface';
+import { useRouter } from "next/navigation";
 
 import {
   Select,
@@ -87,6 +88,8 @@ export default function ParticipantsTable() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [uniqueCohorts, setUniqueCohorts] = useState<string[]>([]);
+
+  const router = useRouter();
 
   const fetchCohorts = async () => {
     try {
@@ -321,61 +324,22 @@ export default function ParticipantsTable() {
     }
   };
 
-  // // Handle email sending functionality
-  // const handleSendEmail = async (emailData: {
-  //   subject: string;
-  //   message: string;
-  // }) => {
-  //   setIsLoading((prev) => ({ ...prev, email: true }));
-  //   try {
-  //     // Get the participants to email
-  //     const participantsToEmail = filteredParticipants.filter((p) =>
-  //       selectedParticipants.includes(p.id)
-  //     );
+  const handleSendEmail = async(participant: number[]) => {
+    setIsLoading((prev) => ({ ...prev, email: true }));
+    try {
+     localStorage.setItem("selectedParticipants", JSON.stringify(participant));
+      router.push("/Web3Lagos/Dashboard/SendEmail");  
+    } catch (error) {
+      console.error("Error sending email:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to send email"
+      );
+    } finally {
+      setIsLoading((prev) => ({ ...prev, email: false }));
+    }
+  }
 
-  //     const emails = participantsToEmail.map((p) => p.email);
-
-  //     const response = await fetch(
-  //       "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/bulk-email/send_bulk_email/",
-
-  //       {
-  //         method: "POST",
-  //         headers: {
-  //           Authorization: `${token}`,
-  //           "Content-Type": "application/json",
-  //         },
-  //         body: JSON.stringify({
-  //           emails: emails,
-  //           subject: emailData.subject,
-  //           message: emailData.message,
-  //         }),
-  //       }
-  //     );
-
-  //     if (!response.ok) {
-  //       const errorData = await response.json().catch(() => ({}));
-  //       throw new Error(
-  //         errorData.message || `Failed to send emails: ${response.statusText}`
-  //       );
-  //     }
-
-  //     const result = await response.json();
-  //     if (!result.success) {
-  //       throw new Error(result.message || "Failed to send emails");
-  //     }
-
-  //     setIsEmailModalOpen(false);
-  //     setSelectedParticipants([]);
-  //     setSelectAll(false);
-  //     alert(`Emails sent successfully to ${emails.length} participants`);
-  //   } catch (error) {
-  //     console.error("Error sending emails:", error);
-  //     alert(error instanceof Error ? error.message : "Failed to send emails");
-  //   } finally {
-  //     setIsLoading((prev) => ({ ...prev, email: false }));
-  //   }
-  // };
-
+ 
   const openEditModal = (participant: Participant) => {
     setSelectedParticipant(participant);
     setIsEditModalOpen(true);
@@ -434,7 +398,7 @@ export default function ParticipantsTable() {
     setCurrentPage(1);
   };
 
-  if (loading) {
+  if (participants.length === 0) {
     return (
       <div className="flex justify-center items-center h-screen">
         Loading...
@@ -443,6 +407,7 @@ export default function ParticipantsTable() {
   }
 
   console.log(participants)
+  console.log(filteredParticipants)
 
   return (
     <main className="p-4 w-full space-y-4">
@@ -546,7 +511,13 @@ export default function ParticipantsTable() {
             <Button
               variant="default"
               size="sm"
-              onClick={() => setIsEmailModalOpen(true)}
+              onClick={() => {
+                if (selectedParticipants) {
+                  handleSendEmail(selectedParticipants);
+                } else {
+                  alert("No participant selected");
+                }
+              }}
               className="flex items-center gap-1"
             >
               <MdEmail size={16} />
