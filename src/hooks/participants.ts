@@ -3,7 +3,7 @@ import { Participant, ApiResponse } from "@/hooks/interface";
 import { useParticipantsStore } from "@/stores/useParticipantsStore";
 
 export const useParticipants = () => {
-  const { setParticipants, setLoading, setError } = useParticipantsStore();
+  const { addParticipants, setLoading, setError } = useParticipantsStore();
 
   const fetchParticipants = useCallback(
     async (token: string) => {
@@ -11,7 +11,6 @@ export const useParticipants = () => {
         setLoading(true);
         setError(null);
 
-        let allResults: Participant[] = [];
         let nextUrl: string | null =
           "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/all/";
 
@@ -32,14 +31,12 @@ export const useParticipants = () => {
           const result: ApiResponse = await response.json();
 
           if (result.success) {
-            allResults = [...allResults, ...result.data.results];
+            addParticipants(result.data.results);
             nextUrl = result.data.next;
           } else {
             throw new Error("Failed to fetch participants");
           }
         }
-
-        setParticipants(allResults);
       } catch (error: any) {
         console.error("Error fetching participants:", error);
         setError(error.message || "Failed to fetch participants");
@@ -48,7 +45,7 @@ export const useParticipants = () => {
         setLoading(false);
       }
     },
-    [setParticipants, setLoading, setError]
+    [addParticipants, setLoading, setError]
   );
 
   return { fetchParticipants };
