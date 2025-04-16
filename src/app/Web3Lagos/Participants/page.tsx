@@ -29,7 +29,8 @@ import TablePagination from "./pagination";
 import CreateParticipantModal from "./CreateParticipantModal";
 import EditParticipantModal from "./EditParticipantModal";
 import DeleteParticipantModal from "./DeleteParticipantModal";
-// import SendEmailModal from "./SendEmail";
+import { fetchCohorts } from '@/hooks/useUpdateCourse';
+
 
 interface Course {
   id: number;
@@ -88,42 +89,12 @@ export default function ParticipantsTable() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [uniqueCohorts, setUniqueCohorts] = useState<string[]>([]);
+   const [registration, setRegistration] = useState<{ id: string; name: string }[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loadings, setLoading] = useState({ other: true });
 
   const router = useRouter();
-
-  const fetchCohorts = async () => {
-    try {
-      const response = await fetch(
-        "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/all/",
-        {
-          method: "GET",
-          headers: {
-            Authorization: `${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok)
-        throw new Error(`API call failed: ${response.statusText}`);
-      const result = await response.json();
-      if (result.success) {
-        const allCohorts = result.data.results || result.data;
-        setCohorts(allCohorts);
-        return allCohorts;
-      }
-      return [];
-    } catch (error) {
-      console.error("Failed to fetch cohorts:", error);
-      alert("Failed to fetch cohorts");
-      return [];
-    }
-  };
-  useEffect(() => {
-    if (token) {
-      fetchCohorts();
-    }
-  }, [token]);
+   
 
   const fetchCourses = async () => {
     try {
@@ -148,6 +119,11 @@ export default function ParticipantsTable() {
       alert("Failed to fetch courses");
     }
   };
+  useEffect(() => {
+      if (token) {
+        fetchCohorts(token, setRegistration, setError, setLoading);
+      }
+    }, [token]);
   useEffect(() => {
     if (token) {
       fetchCourses();
@@ -267,11 +243,6 @@ export default function ParticipantsTable() {
 
       const updatedParticipant = result.data;
 
-      // setParticipants((prev) =>
-      //   prev.map((p) =>
-      //     p.id === selectedParticipant.id ? updatedParticipant : p
-      //   )
-      // );
       setFilteredParticipants((prev) =>
         prev.map((p) =>
           p.id === selectedParticipant.id ? updatedParticipant : p
@@ -361,9 +332,9 @@ export default function ParticipantsTable() {
     setCohortFilter(null);
     setPaymentStatusFilter(null);
     setFilteredParticipants(participants);
+    localStorage.removeItem("selectedParticipants");
   };
 
-  // Handle checkbox selection
   const toggleSelectAll = () => {
     if (selectAll) {
       setSelectedParticipants([]);
@@ -440,11 +411,21 @@ export default function ParticipantsTable() {
               <SelectValue placeholder="Filter by cohort" />
             </SelectTrigger>
             <SelectContent>
-              {uniqueCohorts.map((cohort) => (
-                <SelectItem key={cohort} value={cohort}>
-                  {cohort}
-                </SelectItem>
-              ))}
+            <select
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCohortFilter(value === "all" ? "" : value);
+                  }}
+                  defaultValue="all"
+                  className='border p-2 rounded-lg w-full md:w-full bg-white outline-none'
+                >
+                  <option value="all">All Programs</option>
+                  {registration.map((register) => (
+                    <option key={register.id} value={register.name}>
+                      {register.name}
+                    </option>
+                  ))}
+                </select>
             </SelectContent>
           </Select>
 
