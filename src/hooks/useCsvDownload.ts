@@ -1,36 +1,3 @@
-// useCsvDownload.ts
-
-interface Participant {
-  id: number;
-  name: string;
-  email: string;
-  wallet_address: string;
-  status: string;
-  motivation: string;
-  achievement: string;
-  city: string;
-  state: string;
-  country: string;
-  gender: string;
-  github: string;
-  number: string;
-  cohort: string;
-  payment_status: boolean;
-  created_at: string;
-  updated_at: string;
-  course?: {
-    name: string;
-    description: string;
-    duration: string;
-  };
-  registration?: {
-    name: string;
-    start_date: string;
-    end_date: string;
-    registrationFee: string;
-  };
-}
-
 export const flattenParticipantData = (participants: any[]) => {
   return participants.map((participant) => ({
     id: participant.id || "",
