@@ -30,6 +30,7 @@ import CreateParticipantModal from "./CreateParticipantModal";
 import EditParticipantModal from "./EditParticipantModal";
 import DeleteParticipantModal from "./DeleteParticipantModal";
 import { fetchCohorts } from '@/hooks/useUpdateCourse';
+import { downloadCSV } from "@/hooks/useCsvDownload";
 
 
 interface Course {
@@ -377,6 +378,11 @@ export default function ParticipantsTable() {
     );
   }
 
+  const download = () => {
+    console.log("Selected Participants:", filteredParticipants);
+    downloadCSV(filteredParticipants, "my_data.csv")
+  }
+
   console.log(participants)
   console.log(filteredParticipants)
 
@@ -401,6 +407,12 @@ export default function ParticipantsTable() {
             onChange={(e) => setSearch(e.target.value)}
             className="py-2 px-4"
           />
+          <button
+              onClick={download}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            >
+              Download CSV
+            </button>
 
           {/* Cohort Filter */}
           <Select
