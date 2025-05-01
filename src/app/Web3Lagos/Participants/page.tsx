@@ -30,6 +30,7 @@ import CreateParticipantModal from "./CreateParticipantModal";
 import EditParticipantModal from "./EditParticipantModal";
 import DeleteParticipantModal from "./DeleteParticipantModal";
 import { fetchCohorts } from '@/hooks/useUpdateCourse';
+import { downloadCSV } from "@/hooks/useCsvDownload";
 
 
 interface Course {
@@ -377,7 +378,13 @@ export default function ParticipantsTable() {
     );
   }
 
+  const download = () => {
+    console.log("Selected Participants:", filteredParticipants);
+    downloadCSV(filteredParticipants, "my_data.csv")
+  }
+
   console.log(participants)
+  const showNumbers = selectedParticipants.length > 0 ? selectedParticipants.length : filteredParticipants.length; 
   console.log(filteredParticipants)
 
   return (
@@ -393,7 +400,7 @@ export default function ParticipantsTable() {
           Add Participant
         </Button>
 
-        <div className="flex items-center gap-2 w-2/3">
+        <div className="flex items-center gap-2 w-[60%]">
           {/* Search Input */}
           <Input
             placeholder="Filter by name, email, date registered or registration"
@@ -401,7 +408,7 @@ export default function ParticipantsTable() {
             onChange={(e) => setSearch(e.target.value)}
             className="py-2 px-4"
           />
-
+        
           {/* Cohort Filter */}
           <Select
             value={cohortFilter || undefined}
@@ -454,6 +461,13 @@ export default function ParticipantsTable() {
             </Button>
           )}
         </div>
+        <button
+              onClick={download}
+              className="bg-black text-[12px] text-white px-4 py-2 rounded hover:bg-green-700"
+            >
+              Download CSV ({showNumbers})
+            </button>
+
 
         <div className="flex items-center space-x-2">
           <span>Items per page:</span>
