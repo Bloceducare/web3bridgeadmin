@@ -384,7 +384,7 @@ export default function ParticipantsTable() {
   }
 
   console.log(participants)
-  const showNumbers = selectedParticipants.length > 0 ? selectedParticipants.length : participants.length; 
+  const showNumbers = selectedParticipants.length > 0 ? selectedParticipants.length : filteredParticipants.length; 
   console.log(filteredParticipants)
 
   return (
