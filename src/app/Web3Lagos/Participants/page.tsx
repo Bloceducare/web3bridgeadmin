@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Table,
   TableHeader,
@@ -16,6 +16,9 @@ import { Checkbox } from "@/Components/ui/checkbox";
 import { useParticipantsStore } from '@/stores/useParticipantsStore';
 import { Participant } from '@/hooks/interface';
 import { useRouter } from "next/navigation";
+import { FadeLoader } from "react-spinners";
+import { FaEnvelope } from "react-icons/fa";  // Envelope Icon
+import { AiFillCheckCircle } from "react-icons/ai"; 
 
 import {
   Select,
@@ -31,6 +34,7 @@ import EditParticipantModal from "./EditParticipantModal";
 import DeleteParticipantModal from "./DeleteParticipantModal";
 import { fetchCohorts } from '@/hooks/useUpdateCourse';
 import { downloadCSV } from "@/hooks/useCsvDownload";
+import { useParticipants } from "@/hooks/participants";
 
 
 interface Course {
@@ -57,6 +61,7 @@ interface Cohort {
 
 export default function ParticipantsTable() {
    const { participants, loading } = useParticipantsStore();
+   const { sendConfirmationEmail} = useParticipants();
   const [filteredParticipants, setFilteredParticipants] = useState<
     Participant[]
   >([]);
@@ -65,6 +70,7 @@ export default function ParticipantsTable() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string | null>(
     null
   );
+  const [mes, setMess] = useState<string | null>(null);
   const [selectedParticipant, setSelectedParticipant] =
     useState<Participant | null>(null);
   const [token, setToken] = useState("");
@@ -84,6 +90,7 @@ export default function ParticipantsTable() {
     fetch: true,
     create: false,
     email: false,
+    confirm:false
   });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
@@ -94,6 +101,13 @@ export default function ParticipantsTable() {
   const [error, setError] = useState<string | null>(null);
   const [loadings, setLoading] = useState({ other: true });
 
+
+
+  
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    if (storedToken) setToken(storedToken);
+  }, []);
   const router = useRouter();
    
 
@@ -160,7 +174,6 @@ export default function ParticipantsTable() {
       }
 
       const newParticipant = result.data;
-      // setParticipants((prev) => [...prev, newParticipant]);
       setFilteredParticipants((prev) => [...prev, newParticipant]);
       setIsCreateModalOpen(false);
       alert("Participant created successfully");
@@ -175,17 +188,8 @@ export default function ParticipantsTable() {
   };
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    if (storedToken) setToken(storedToken);
-  }, []);
-
-  
-
-  useEffect(() => {
-    let filtered = participants;
-
-    // Filter by name, email, created_at, or registration
-    if (search) {
+    let filtered = [...participants];    
+    if (search.trim() !== "") {
       filtered = filtered.filter(
         (p) =>
           p?.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -194,24 +198,36 @@ export default function ParticipantsTable() {
           (p?.registration && p.registration.toString().includes(search))
       );
     }
-
-    // Filter by cohort
+  
+    
     if (cohortFilter) {
       filtered = filtered.filter((p) => p.cohort === cohortFilter);
     }
 
-    // Filter by payment status
     if (paymentStatusFilter) {
       const isPaid = paymentStatusFilter === "paid";
       filtered = filtered.filter((p) => p.payment_status === isPaid);
     }
-
+  
     setFilteredParticipants(filtered);
+  
+  
     setCurrentPage(1);
-    // Reset selections when filters change
     setSelectedParticipants([]);
     setSelectAll(false);
+  
   }, [search, cohortFilter, paymentStatusFilter, participants]);
+  
+  useEffect(() => {
+    console.log("Search value: ", search);
+  }, [search]);
+  
+  useEffect(() => {
+    console.log("Participants shit:", participants);
+    console.log("FilteredParticipants updated:", filteredParticipants);
+  }, [filteredParticipants]);
+  
+  
 
   const handleEdit = async (updatedData: Partial<Participant>) => {
     if (!selectedParticipant) return;
@@ -355,10 +371,13 @@ export default function ParticipantsTable() {
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredParticipants.slice(
-    indexOfFirstItem,
-    indexOfLastItem
-  );
+  const currentItems = useMemo(() => {
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    return filteredParticipants.slice(indexOfFirstItem, indexOfLastItem);
+  }, [filteredParticipants, currentPage, itemsPerPage]);
+
+  console.log("Current Items:", currentItems);
   const totalPages = Math.ceil(filteredParticipants.length / itemsPerPage);
 
   const handlePageChange = (pageNumber: number) => {
@@ -382,7 +401,28 @@ export default function ParticipantsTable() {
     console.log("Selected Participants:", filteredParticipants);
     downloadCSV(filteredParticipants, "my_data.csv")
   }
-
+  const sendConfirmationMail = async (email: string) => {
+    setIsLoading((prev) => ({ ...prev, confirm: true })); 
+    setMess("Sending confirmation email...");
+    
+    try {
+      if (token) {
+        const response = await sendConfirmationEmail(token, email);
+      }
+      setMess("Confirmation email sent successfully");
+    } catch (error) {
+      console.error("Error sending email:", error);
+      setMess(
+        error instanceof Error ? error.message : "Failed to send email"
+      );
+    } finally {
+      setTimeout(() => {
+        setIsLoading((prev) => ({ ...prev, confirm: false }));
+      }, 3000); 
+    }
+  };
+  
+  
   console.log(participants)
   const showNumbers = selectedParticipants.length > 0 ? selectedParticipants.length : filteredParticipants.length; 
   console.log(filteredParticipants)
@@ -518,6 +558,8 @@ export default function ParticipantsTable() {
               <MdEmail size={16} />
               Send Email
             </Button>
+
+          
           </div>
         </div>
       )}
@@ -606,6 +648,15 @@ export default function ParticipantsTable() {
                       >
                         <MdDelete size={16} />
                       </Button>
+                              <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => sendConfirmationMail(email)}
+                      className="flex items-center gap-1"
+                        >
+                        <MdEmail size={16} />
+                         Confirmation Email
+                      </Button>
                     </div>
                   </div>
                 </TableCell>
@@ -651,6 +702,25 @@ export default function ParticipantsTable() {
         onDelete={confirmDelete}
         isLoading={isLoading.delete}
       />
+
+      {isLoading.confirm && (
+         <div className="fixed inset-0 flex justify-center items-center bg-gray-800 bg-opacity-50 z-50">
+         <div className="flex justify-center items-center flex-col">
+           <FadeLoader color="#ffffff" />
+           <div className="flex justify-center items-center flex-col">
+           {mes === "Confirmation email sent successfully" ? (
+          <AiFillCheckCircle className="text-white text-3xl mb-4" />
+        ) : (
+          <FaEnvelope className="text-white text-3xl mb-4" />
+        )}
+          <p className="text-white font-extrabold text-lg text-center">{mes}</p> 
+
+           </div>
+         </div>
+       </div>
+      )
+
+      }
 
       {/* Email Modal */}
 {/*       
