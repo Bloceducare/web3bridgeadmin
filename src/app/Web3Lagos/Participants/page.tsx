@@ -28,7 +28,6 @@ import TablePagination from "./pagination";
 import CreateParticipantModal from "./CreateParticipantModal";
 import EditParticipantModal from "./EditParticipantModal";
 import DeleteParticipantModal from "./DeleteParticipantModal";
-// import SendEmailModal from "./SendEmail";
 
 interface Course {
   id: number;
@@ -207,7 +206,7 @@ export default function ParticipantsTable() {
     // Filter by name, email, created_at, or registration
     if (search) {
       filtered = filtered.filter(
-        (p) =>
+        (p: Participant) =>
           p?.name?.toLowerCase().includes(search.toLowerCase()) ||
           p?.email?.toLowerCase().includes(search.toLowerCase()) ||
           (p?.created_at && p.created_at.toString().includes(search)) ||
@@ -217,13 +216,13 @@ export default function ParticipantsTable() {
 
     // Filter by cohort
     if (cohortFilter) {
-      filtered = filtered.filter((p) => p.cohort === cohortFilter);
+      filtered = filtered.filter((p: Participant) => p.cohort === cohortFilter);
     }
 
     // Filter by payment status
     if (paymentStatusFilter) {
       const isPaid = paymentStatusFilter === "paid";
-      filtered = filtered.filter((p) => p.payment_status === isPaid);
+      filtered = filtered.filter((p: Participant) => p.payment_status === isPaid);
     }
 
     setFilteredParticipants(filtered);
