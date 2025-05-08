@@ -96,7 +96,6 @@ export default function ParticipantsTable() {
   const [selectAll, setSelectAll] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [registration, setRegistration] = useState<
     { id: string; name: string }[]
   >([]);
@@ -674,7 +673,17 @@ export default function ParticipantsTable() {
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreate}
         courses={courses}
-        cohorts={cohorts}
+        cohorts={registration.map((reg) => ({
+          id: parseInt(reg.id), 
+          name: reg.name,
+          cohort: null, 
+          is_open: false, 
+          start_date: "", 
+          end_date: "", 
+          registrationFee: "", 
+          courses: {} as Course, 
+          registration: 0,
+        }))}
         isLoading={isLoading.create}
       />
 
@@ -684,7 +693,17 @@ export default function ParticipantsTable() {
         participant={selectedParticipant}
         onSubmit={handleEdit}
         courses={courses}
-        cohorts={cohorts}
+        cohorts={registration.map((reg) => ({
+          id: parseInt(reg.id), 
+          name: reg.name,
+          cohort: null, 
+          is_open: false,
+          start_date: "", 
+          end_date: "", 
+          registrationFee: "", 
+          courses: {} as Course, 
+          registration: 0, 
+        }))}
         isLoading={isLoading.edit}
       />
 

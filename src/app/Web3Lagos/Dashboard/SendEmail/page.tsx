@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import DOMPurify from 'dompurify';
 import { Participant } from '@/hooks/interface';
 import { useParticipantsStore } from '@/stores/useParticipantsStore';
 import { fetchCohorts } from '@/hooks/useUpdateCourse';
