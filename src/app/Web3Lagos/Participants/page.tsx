@@ -109,6 +109,7 @@ export default function ParticipantsTable() {
     email: false,
     confirm: false,
   });
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
 
   const router = useRouter();
 
@@ -118,12 +119,13 @@ export default function ParticipantsTable() {
     if (storedToken) setToken(storedToken);
   }, []);
 
-  // Fetch participants only once when token is available
+  // Fetch participants - modified to allow multiple fetches and show data immediately
   useEffect(() => {
-    if (token && !hasLoaded && !isFetching) {
+    if (token && !isFetching && !hasFetchedOnce) {
+      setHasFetchedOnce(true);
       fetchParticipants(token);
     }
-  }, [token, fetchParticipants, hasLoaded, isFetching]);
+  }, [token, fetchParticipants, isFetching, hasFetchedOnce]);
 
   // Fetch cohorts when token is available
   useEffect(() => {
@@ -163,34 +165,54 @@ export default function ParticipantsTable() {
     }
   }, [token]);
 
-  // Update filtered participants when filters change
-  useEffect(() => {
-    let filtered = [...participants];
+useEffect(() => {
+  let filtered = [...participants];
 
-    if (search.trim() !== "") {
-      filtered = filtered.filter(
-        (p) =>
-          p?.name?.toLowerCase().includes(search.toLowerCase()) ||
-          p?.email?.toLowerCase().includes(search.toLowerCase()) ||
-          (p?.created_at && p.created_at.toString().includes(search)) ||
-          (p?.registration && p.registration.toString().includes(search))
-      );
+  if (search.trim() !== "") {
+    // Split search terms by comma, semicolon, or space and clean them
+    const searchTerms = search
+      .split(/[,;\s]+/) // Split by comma, semicolon, or whitespace
+      .map(term => term.trim().toLowerCase())
+      .filter(term => term.length > 0); // Remove empty terms
+
+    if (searchTerms.length > 0) {
+      filtered = filtered.filter((participant) => {
+        // Convert participant data to searchable strings
+        const searchableFields = [
+          participant?.name?.toLowerCase() || '',
+          participant?.email?.toLowerCase() || '',
+          participant?.created_at?.toString().toLowerCase() || '',
+          participant?.registration?.toString().toLowerCase() || '',
+         
+        ];
+
+        // Combine all searchable fields into one string for easier searching
+        const participantSearchText = searchableFields.join(' ');
+
+        // This allows finding multiple different participants with different search terms
+        return searchTerms.some(term => 
+          participantSearchText.includes(term)
+        );
+      });
     }
+  }
 
-    if (cohortFilter) {
-      filtered = filtered.filter((p) => p.cohort === cohortFilter);
-    }
+  // Apply cohort filter
+  if (cohortFilter) {
+    filtered = filtered.filter((p) => p.cohort === cohortFilter);
+  }
 
-    if (paymentStatusFilter) {
-      const isPaid = paymentStatusFilter === "paid";
-      filtered = filtered.filter((p) => p.payment_status === isPaid);
-    }
+  // Apply payment status filter
+  if (paymentStatusFilter) {
+    const isPaid = paymentStatusFilter === "paid";
+    filtered = filtered.filter((p) => p.payment_status === isPaid);
+  }
 
-    setFilteredParticipants(filtered);
-    setCurrentPage(1);
-    setSelectedParticipants([]);
-    setSelectAll(false);
-  }, [search, cohortFilter, paymentStatusFilter, participants]);
+  setFilteredParticipants(filtered);
+  setCurrentPage(1);
+  setSelectedParticipants([]);
+  setSelectAll(false);
+}, [search, cohortFilter, paymentStatusFilter, participants]);
 
   // Handle creating a new participant
   const handleCreate = async (newParticipantData: Partial<Participant>) => {
@@ -417,8 +439,19 @@ export default function ParticipantsTable() {
     downloadCSV(filteredParticipants, "my_data.csv");
   };
 
-  // Show loading state if participants are being fetched
-  if (loading && participants.length === 0) {
+  // Helper function to format venue display
+  const formatVenue = (venue: string | string[] | null | undefined) => {
+    if (!venue) return "No Venue";
+    if (Array.isArray(venue)) {
+      return venue.length > 0 ? venue.join(", ") : "No Venue";
+    }
+    return venue;
+  };
+
+  // Modified loading condition - only show loading when no participants exist AND we're fetching
+  const shouldShowLoading = participants.length === 0 && (loading || isFetching);
+
+  if (shouldShowLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <FadeLoader color="#000000" />
@@ -463,7 +496,7 @@ export default function ParticipantsTable() {
               <SelectValue placeholder="Filter by cohort" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Programs</SelectItem>
+              {/* <SelectItem value="all">All Programs</SelectItem> */}
               {registration.map((register) => (
                 <SelectItem key={register.id} value={register.name}>
                   {register.name}
@@ -524,6 +557,14 @@ export default function ParticipantsTable() {
         </div>
       </div>
 
+      {/* Show loading indicator only when still fetching but have some data */}
+      {isFetching && participants.length > 0 && (
+        <div className="flex justify-center items-center py-2">
+          <FadeLoader color="#666666" height={10} width={3} />
+          <span className="ml-2 text-sm text-gray-600">Loading more participants...</span>
+        </div>
+      )}
+
       {/* Bulk actions section */}
       {selectedParticipants.length > 0 && (
         <div className="flex items-center justify-between bg-blue-50 p-2 rounded mb-2">
@@ -578,13 +619,14 @@ export default function ParticipantsTable() {
             <TableHead>Email</TableHead>
             <TableHead>Cohort</TableHead>
             <TableHead>Course</TableHead>
+            <TableHead>Venue</TableHead>
             <TableHead>Payment Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {currentItems.map((participant, index) => {
-            const { id, name, email, course, cohort, payment_status } =
+            const { id, name, email, course, cohort, payment_status, venue } =
               participant;
             const serialNumber = indexOfFirstItem + index + 1;
             const isSelected = selectedParticipants.includes(id);
@@ -604,6 +646,7 @@ export default function ParticipantsTable() {
                 <TableCell>{email}</TableCell>
                 <TableCell>{cohort}</TableCell>
                 <TableCell>{course?.name || "No Course"}</TableCell>
+                <TableCell>{formatVenue(venue)}</TableCell>
                 <TableCell>
                   <span
                     className={`px-2 py-1 rounded-full text-xs ${
