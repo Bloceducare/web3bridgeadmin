@@ -37,6 +37,7 @@ export interface Participant {
   country: string;
   gender: string;
   github: string;
+  venue: string;
   payment_status: boolean;
   registration: number;
   number: string;

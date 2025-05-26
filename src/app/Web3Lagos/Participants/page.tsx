@@ -439,6 +439,15 @@ useEffect(() => {
     downloadCSV(filteredParticipants, "my_data.csv");
   };
 
+  // Helper function to format venue display
+  const formatVenue = (venue: string | string[] | null | undefined) => {
+    if (!venue) return "No Venue";
+    if (Array.isArray(venue)) {
+      return venue.length > 0 ? venue.join(", ") : "No Venue";
+    }
+    return venue;
+  };
+
   // Modified loading condition - only show loading when no participants exist AND we're fetching
   const shouldShowLoading = participants.length === 0 && (loading || isFetching);
 
@@ -610,13 +619,14 @@ useEffect(() => {
             <TableHead>Email</TableHead>
             <TableHead>Cohort</TableHead>
             <TableHead>Course</TableHead>
+            <TableHead>Venue</TableHead>
             <TableHead>Payment Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {currentItems.map((participant, index) => {
-            const { id, name, email, course, cohort, payment_status } =
+            const { id, name, email, course, cohort, payment_status, venue } =
               participant;
             const serialNumber = indexOfFirstItem + index + 1;
             const isSelected = selectedParticipants.includes(id);
@@ -636,6 +646,7 @@ useEffect(() => {
                 <TableCell>{email}</TableCell>
                 <TableCell>{cohort}</TableCell>
                 <TableCell>{course?.name || "No Course"}</TableCell>
+                <TableCell>{formatVenue(venue)}</TableCell>
                 <TableCell>
                   <span
                     className={`px-2 py-1 rounded-full text-xs ${

@@ -52,6 +52,7 @@ export default function EditParticipantModal({
         country: participant.country,
         gender: participant.gender,
         motivation: participant.motivation,
+        venue: participant.venue,
         achievement: participant.achievement,
         payment_status: participant.payment_status,
         number: participant.number,
@@ -187,6 +188,7 @@ export default function EditParticipantModal({
               { label: "State", key: "state" },
               { label: "Country", key: "country" },
               { label: "Motivation", key: "motivation" },
+              { label: "Venue", key: "venue" },
               { label: "Achievement", key: "achievement" },
               { label: "Phone Number", key: "number" },
             ].map(({ label, key }) => (
