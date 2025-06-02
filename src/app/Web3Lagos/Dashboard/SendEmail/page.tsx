@@ -94,7 +94,7 @@ function Page() {
     };
     try {
       const response = await fetch(
-        'http://127.0.0.1:8000/api/v2/cohort/bulk-email/send_bulk_email/',
+        'https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/bulk-email/send_bulk_email/',
         {
           method: 'POST',
           headers: {
@@ -116,7 +116,7 @@ function Page() {
     } catch (error) {
       setStatusMessage('Error sending message. Please try again.');
       setIsSuccess(false);
-    localStorage.removeItem("selectedParticipants");
+      localStorage.removeItem("selectedParticipants");
     } 
   };
 
