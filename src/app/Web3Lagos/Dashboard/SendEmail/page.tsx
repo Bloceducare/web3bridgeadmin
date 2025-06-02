@@ -90,7 +90,7 @@ function Page() {
     };
     try {
       const response = await fetch(
-        'https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/bulk-email/send_bulk_email/',
+        'http://127.0.0.1:8000/api/v2/cohort/bulk-email/send_bulk_email/',
         {
           method: 'POST',
           headers: {

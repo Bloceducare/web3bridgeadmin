@@ -11,8 +11,9 @@ interface DiscountCodes {
   code: string,
   is_used: boolean,
   validity: string,
- claimant: string
- created_at: string
+  claimant: string,
+  percentage: number,
+  created_at: string
 }
 
 interface newCode {
@@ -20,7 +21,8 @@ interface newCode {
   code: string,
   is_used: boolean,
   validity: string,
-  claimant: string
+  claimant: string,
+  percentage: number
 }
 
 function page() {
@@ -31,7 +33,8 @@ function page() {
   const [showCreateDiscount, setShowCreateDiscount] = useState(false);
   const [validate, setValidateDiscount] = useState(false)
   const [Delmessage, setDelMessage] = useState<Record<string, string>>({});
-  const [quantity, setQuantity] = useState<number>(0); 
+  const [quantity, setQuantity] = useState<number>(0);
+  const [percentage, setPercentage] = useState<number>(0);
   const [code, setCode] = useState("")
   const [message, setMessage] = useState<string>(""); 
   const [Valmessage, setValMessage] = useState<string>(""); 
@@ -96,7 +99,12 @@ function page() {
         return;
       }
   
-      await generateDiscountCode(quantity, token, setNewDiscountCode, setMessage, setLoading);
+      if (percentage < 1 || percentage > 100) {
+        setMessage("Please enter a valid percentage (1-100).");
+        return;
+      }
+  
+      await generateDiscountCode(quantity, percentage, token, setNewDiscountCode, setMessage, setLoading);
     };
 
     const handleValidateDiscount = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -262,6 +270,9 @@ function page() {
                           <strong>Code:</strong> {discount.code}
                         </p>
                         <p>
+                          <strong>Percentage:</strong> {discount.percentage}%
+                        </p>
+                        <p>
                           <strong>Used:</strong> {discount.is_used ? "Yes" : "No"}
                         </p>
                         <p>
@@ -322,6 +333,16 @@ function page() {
                 <div className='flex flex-col gap-2 text-lg font-semibold'>
                     <label>Number of discount codes</label>
                   <input type="number" className='border p-2 outline-none' onChange={(e) => setQuantity(Number(e.target.value))} min={1} />
+                  
+                  <label>Discount Percentage</label>
+                  <input 
+                    type="number" 
+                    className='border p-2 outline-none' 
+                    onChange={(e) => setPercentage(Number(e.target.value))} 
+                    min={1} 
+                    max={100}
+                    placeholder="Enter percentage (1-100)"
+                  />
                 </div>
 
                 <button type="submit" className='bg-black text-white px-3 py-2 rounded-md mt-3'>{loading.new ? "Generating..." : "Generate"} </button>
@@ -333,6 +354,9 @@ function page() {
                       <div key={discount.id}   className="p-3 border rounded-lg bg-gray-100 space-y-2 mt-2">
                            <p>
                           <strong>Code:</strong> {discount.code}
+                        </p>
+                        <p>
+                          <strong>Percentage:</strong> {discount.percentage}%
                         </p>
                         <p>
                           <strong>Used:</strong> {discount.is_used ? "Yes" : "No"}

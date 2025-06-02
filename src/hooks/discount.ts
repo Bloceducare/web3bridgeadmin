@@ -85,7 +85,8 @@ export const deleteCode = async ( id: number, token: string,
 
 
 export const generateDiscountCode = async (
-  quantity: number, 
+  quantity: number,
+  percentage: number,
   token: string, 
   setNewDiscountCodes: (data: any) => void, 
   setMessage: (data: string) => void,
@@ -103,7 +104,7 @@ export const generateDiscountCode = async (
         "Content-Type": "application/json",
         Authorization: `${token}`, 
       },
-      body: JSON.stringify({ quantity }),
+      body: JSON.stringify({ quantity, percentage }),
     });
 
     const data = await response.json();
