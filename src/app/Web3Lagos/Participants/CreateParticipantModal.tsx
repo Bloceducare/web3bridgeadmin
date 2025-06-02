@@ -40,6 +40,7 @@ export default function CreateParticipantModal({
     gender: "",
     motivation: "",
     achievement: "",
+    venue: "",
     payment_status: false,
     registration: undefined,
     number: "",
@@ -87,6 +88,7 @@ export default function CreateParticipantModal({
       gender: "",
       motivation: "",
       achievement: "",
+      venue: "",
       payment_status: false,
       number: "",
     });
@@ -173,6 +175,7 @@ export default function CreateParticipantModal({
               { label: "State", key: "state" },
               { label: "Country", key: "country" },
               { label: "Motivation", key: "motivation" },
+              { label: "Venue", key: "venue" },
               { label: "Achievement", key: "achievement" },
               { label: "Phone Number", key: "number" },
             ].map(({ label, key }) => (

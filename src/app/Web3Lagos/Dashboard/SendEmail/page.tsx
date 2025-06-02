@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import DOMPurify from 'dompurify';
 import { Participant } from '@/hooks/interface';
 import { useParticipantsStore } from '@/stores/useParticipantsStore';
 import { fetchCohorts } from '@/hooks/useUpdateCourse';
@@ -24,12 +23,14 @@ function Page() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState({ other: true });
   const [selectedParticipants, setSelectedParticipants] = useState<number[]>([]);
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("selectedParticipants");
     if (stored) {
       setSelectedParticipants(JSON.parse(stored));
-      sessionStorage.removeItem("selectedParticipants");
+      localStorage.removeItem("selectedParticipants");
+      setShow(true);
     }
   }, []);
 
@@ -67,8 +68,11 @@ function Page() {
   
 
   useEffect(() => {
-    handleFilter();
-  }, [cohortFilter, paymentStatusFilter]);
+    if (!show) {
+      handleFilter();
+    }
+  }, [cohortFilter, paymentStatusFilter, show]);
+  
 
   const handleSendFilteredEmails = async () => {
     if (!message.trim()) {
@@ -116,12 +120,26 @@ function Page() {
     } 
   };
 
+  const handleClearFilter = () => { 
+    localStorage.removeItem("selectedParticipants");
+    setShow(false);
+  
+    setFilteredParticipants(participants);
+  }
+
   return (
     <div className="w-full overflow-hidden p-4">
       <div className="mt-8 text-center">
         {participantsToUse.length === 0 ? (
           <p className="text-gray-500">Loading participants...</p>   ) : (  <div className="text-center">  <p>  You can proceed to send <b>{participantsToUse.length}</b> participants your message  </p>  </div>
         )}
+        {show ? (
+          <button className='mt-2 border-2 px-4 py-2 bg-red-600 rounded-lg  text-white' onClick={handleClearFilter}>Clear Filtering</button>
+        ) : (
+          <p></p>
+        )
+
+        }
       </div>
 
       <section className="flex justify-center mt-10">
@@ -139,7 +157,6 @@ function Page() {
               className="w-full h-[8vh] p-4 border-2 border-gray-300 rounded-lg outline-none resize-none"
             />
           </div>
-
           <div className='flex flex-col gap-4'>
             <label className='text-black'>Write your message</label>
              <ReactQuill
@@ -169,10 +186,13 @@ function Page() {
           </div>
           <p className='mt-10'>Compose the email message that will be sent to the recipients</p>
           <section className='bg-gray-300 px-10 py-7 rounded-lg'>
-            <div className='text-2xl font-semibold'>
+            {show ? (
+              <p>You have  ({selectedParticipants.length}) selected Participants</p>
+            ) : (
+              <section> 
+                     <div className='text-2xl font-semibold'>
               <h1>Filter Participants</h1>
             </div>
-
             <div className='flex flex-col md:flex-col gap-4 mt-5'>
               <div className='space-y-4'>
                 <p className="font-semibold">Select program</p>
@@ -247,7 +267,15 @@ function Page() {
             </button>
 
             </div>
-            <button
+
+                </section>
+            )}
+       
+
+      
+         
+          </section>
+          <button
               onClick={handleSendFilteredEmails}
               disabled={participantsToUse.length === 0}
               className={`mt-4 px-6 py-2 rounded-lg text-white transition duration-300 ${
@@ -258,7 +286,6 @@ function Page() {
             >
               Send Message
             </button>
-          </section>
             </div>
           </section>
           <div className='flex justify-center mt-5'>
@@ -273,7 +300,6 @@ function Page() {
           </button>
         </div>
       )}
-
       </div>
     </div>
   );

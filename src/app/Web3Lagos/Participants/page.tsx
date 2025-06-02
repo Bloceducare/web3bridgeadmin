@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Table,
   TableHeader,
@@ -13,9 +13,12 @@ import { Input } from "@/Components/ui/input";
 import { Button } from "@/Components/ui/button";
 import { MdMoreHoriz, MdDelete, MdEdit, MdAdd, MdEmail } from "react-icons/md";
 import { Checkbox } from "@/Components/ui/checkbox";
-import { useParticipantsStore } from '@/stores/useParticipantsStore';
-import { Participant } from '@/hooks/interface';
+import { useParticipantsStore } from "@/stores/useParticipantsStore";
+import { Participant } from "@/hooks/interface";
 import { useRouter } from "next/navigation";
+import { FadeLoader } from "react-spinners";
+import { FaEnvelope } from "react-icons/fa";
+import { AiFillCheckCircle } from "react-icons/ai";
 
 import {
   Select,
@@ -29,8 +32,11 @@ import TablePagination from "./pagination";
 import CreateParticipantModal from "./CreateParticipantModal";
 import EditParticipantModal from "./EditParticipantModal";
 import DeleteParticipantModal from "./DeleteParticipantModal";
-// import SendEmailModal from "./SendEmail";
+import { fetchCohorts } from "@/hooks/useUpdateCourse";
+import { downloadCSV } from "@/hooks/useCsvDownload";
+import { useParticipants } from "@/hooks/participants";
 
+// Interface definitions
 interface Course {
   id: number;
   name: string;
@@ -41,6 +47,7 @@ interface Course {
   status: boolean;
   registration: number;
 }
+
 interface Cohort {
   id: number;
   name: string;
@@ -54,7 +61,19 @@ interface Cohort {
 }
 
 export default function ParticipantsTable() {
-   const { participants, loading } = useParticipantsStore();
+  // Get data and functions from stores and hooks
+  const {
+    participants,
+    loading,
+    hasLoaded,
+    addParticipant,
+    updateParticipant,
+    deleteParticipant,
+  } = useParticipantsStore();
+  const { fetchParticipants, sendConfirmationEmail, isFetching } =
+    useParticipants();
+
+  // Local state
   const [filteredParticipants, setFilteredParticipants] = useState<
     Participant[]
   >([]);
@@ -63,6 +82,7 @@ export default function ParticipantsTable() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string | null>(
     null
   );
+  const [mes, setMess] = useState<string | null>(null);
   const [selectedParticipant, setSelectedParticipant] =
     useState<Participant | null>(null);
   const [token, setToken] = useState("");
@@ -70,61 +90,51 @@ export default function ParticipantsTable() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  // New state for selected participants and email modal
   const [selectedParticipants, setSelectedParticipants] = useState<number[]>(
     []
   );
   const [selectAll, setSelectAll] = useState(false);
-  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [registration, setRegistration] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loadings, setLoading] = useState({ other: true });
   const [isLoading, setIsLoading] = useState({
     edit: false,
     delete: false,
-    fetch: true,
+    fetch: false,
     create: false,
     email: false,
+    confirm: false,
   });
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [cohorts, setCohorts] = useState<Cohort[]>([]);
-  const [uniqueCohorts, setUniqueCohorts] = useState<string[]>([]);
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
 
   const router = useRouter();
 
-  const fetchCohorts = async () => {
-    try {
-      const response = await fetch(
-        "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/all/",
-        {
-          method: "GET",
-          headers: {
-            Authorization: `${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+  // Get token from localStorage
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    if (storedToken) setToken(storedToken);
+  }, []);
 
-      if (!response.ok)
-        throw new Error(`API call failed: ${response.statusText}`);
-      const result = await response.json();
-      if (result.success) {
-        const allCohorts = result.data.results || result.data;
-        setCohorts(allCohorts);
-        return allCohorts;
-      }
-      return [];
-    } catch (error) {
-      console.error("Failed to fetch cohorts:", error);
-      alert("Failed to fetch cohorts");
-      return [];
+  // Fetch participants - modified to allow multiple fetches and show data immediately
+  useEffect(() => {
+    if (token && !isFetching && !hasFetchedOnce) {
+      setHasFetchedOnce(true);
+      fetchParticipants(token);
     }
-  };
+  }, [token, fetchParticipants, isFetching, hasFetchedOnce]);
+
+  // Fetch cohorts when token is available
   useEffect(() => {
     if (token) {
-      fetchCohorts();
+      fetchCohorts(token, setRegistration, setError, setLoading);
     }
   }, [token]);
 
+  // Fetch courses when token is available
   const fetchCourses = async () => {
     try {
       const response = await fetch(
@@ -148,12 +158,63 @@ export default function ParticipantsTable() {
       alert("Failed to fetch courses");
     }
   };
+
   useEffect(() => {
     if (token) {
       fetchCourses();
     }
   }, [token]);
 
+useEffect(() => {
+  let filtered = [...participants];
+
+  if (search.trim() !== "") {
+    // Split search terms by comma, semicolon, or space and clean them
+    const searchTerms = search
+      .split(/[,;\s]+/) // Split by comma, semicolon, or whitespace
+      .map(term => term.trim().toLowerCase())
+      .filter(term => term.length > 0); // Remove empty terms
+
+    if (searchTerms.length > 0) {
+      filtered = filtered.filter((participant) => {
+        // Convert participant data to searchable strings
+        const searchableFields = [
+          participant?.name?.toLowerCase() || '',
+          participant?.email?.toLowerCase() || '',
+          participant?.created_at?.toString().toLowerCase() || '',
+          participant?.registration?.toString().toLowerCase() || '',
+         
+        ];
+
+        // Combine all searchable fields into one string for easier searching
+        const participantSearchText = searchableFields.join(' ');
+
+        // This allows finding multiple different participants with different search terms
+        return searchTerms.some(term => 
+          participantSearchText.includes(term)
+        );
+      });
+    }
+  }
+
+  // Apply cohort filter
+  if (cohortFilter) {
+    filtered = filtered.filter((p) => p.cohort === cohortFilter);
+  }
+
+  // Apply payment status filter
+  if (paymentStatusFilter) {
+    const isPaid = paymentStatusFilter === "paid";
+    filtered = filtered.filter((p) => p.payment_status === isPaid);
+  }
+
+  setFilteredParticipants(filtered);
+  setCurrentPage(1);
+  setSelectedParticipants([]);
+  setSelectAll(false);
+}, [search, cohortFilter, paymentStatusFilter, participants]);
+
+  // Handle creating a new participant
   const handleCreate = async (newParticipantData: Partial<Participant>) => {
     setIsLoading((prev) => ({ ...prev, create: true }));
 
@@ -182,9 +243,8 @@ export default function ParticipantsTable() {
         throw new Error(result.message || "Failed to create participant");
       }
 
-      const newParticipant = result.data;
-      // setParticipants((prev) => [...prev, newParticipant]);
-      setFilteredParticipants((prev) => [...prev, newParticipant]);
+      // Add the new participant to the store
+      addParticipant(result.data);
       setIsCreateModalOpen(false);
       alert("Participant created successfully");
     } catch (error) {
@@ -197,45 +257,7 @@ export default function ParticipantsTable() {
     }
   };
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    if (storedToken) setToken(storedToken);
-  }, []);
-
-  
-
-  useEffect(() => {
-    let filtered = participants;
-
-    // Filter by name, email, created_at, or registration
-    if (search) {
-      filtered = filtered.filter(
-        (p) =>
-          p?.name?.toLowerCase().includes(search.toLowerCase()) ||
-          p?.email?.toLowerCase().includes(search.toLowerCase()) ||
-          (p?.created_at && p.created_at.toString().includes(search)) ||
-          (p?.registration && p.registration.toString().includes(search))
-      );
-    }
-
-    // Filter by cohort
-    if (cohortFilter) {
-      filtered = filtered.filter((p) => p.cohort === cohortFilter);
-    }
-
-    // Filter by payment status
-    if (paymentStatusFilter) {
-      const isPaid = paymentStatusFilter === "paid";
-      filtered = filtered.filter((p) => p.payment_status === isPaid);
-    }
-
-    setFilteredParticipants(filtered);
-    setCurrentPage(1);
-    // Reset selections when filters change
-    setSelectedParticipants([]);
-    setSelectAll(false);
-  }, [search, cohortFilter, paymentStatusFilter, participants]);
-
+  // Handle editing a participant
   const handleEdit = async (updatedData: Partial<Participant>) => {
     if (!selectedParticipant) return;
 
@@ -265,18 +287,8 @@ export default function ParticipantsTable() {
         throw new Error(result.message || "Failed to update participant");
       }
 
-      const updatedParticipant = result.data;
-
-      // setParticipants((prev) =>
-      //   prev.map((p) =>
-      //     p.id === selectedParticipant.id ? updatedParticipant : p
-      //   )
-      // );
-      setFilteredParticipants((prev) =>
-        prev.map((p) =>
-          p.id === selectedParticipant.id ? updatedParticipant : p
-        )
-      );
+      // Update the participant in the store
+      updateParticipant(selectedParticipant.id, result.data);
       setIsEditModalOpen(false);
       alert("Participant updated successfully");
     } catch (error) {
@@ -289,6 +301,7 @@ export default function ParticipantsTable() {
     }
   };
 
+  // Handle deleting a participant
   const handleDelete = async (id: number) => {
     setIsLoading((prev) => ({ ...prev, delete: true }));
     try {
@@ -310,8 +323,8 @@ export default function ParticipantsTable() {
         );
       }
 
-      // setParticipants((prev) => prev.filter((p) => p.id !== id));
-      setFilteredParticipants((prev) => prev.filter((p) => p.id !== id));
+      // Remove the participant from the store
+      deleteParticipant(id);
       setIsDeleteModalOpen(false);
       alert("Participant deleted successfully");
     } catch (error) {
@@ -324,22 +337,41 @@ export default function ParticipantsTable() {
     }
   };
 
-  const handleSendEmail = async(participant: number[]) => {
+  // Handle sending email to selected participants
+  const handleSendEmail = async (participant: number[]) => {
     setIsLoading((prev) => ({ ...prev, email: true }));
     try {
-     localStorage.setItem("selectedParticipants", JSON.stringify(participant));
-      router.push("/Web3Lagos/Dashboard/SendEmail");  
+      localStorage.setItem("selectedParticipants", JSON.stringify(participant));
+      router.push("/Web3Lagos/Dashboard/SendEmail");
     } catch (error) {
       console.error("Error sending email:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to send email"
-      );
+      alert(error instanceof Error ? error.message : "Failed to send email");
     } finally {
       setIsLoading((prev) => ({ ...prev, email: false }));
     }
-  }
+  };
 
- 
+  // Handle sending confirmation email
+  const sendConfirmationMail = async (email: string) => {
+    setIsLoading((prev) => ({ ...prev, confirm: true }));
+    setMess("Sending confirmation email...");
+
+    try {
+      if (token) {
+        await sendConfirmationEmail(token, email);
+      }
+      setMess("Confirmation email sent successfully");
+    } catch (error) {
+      console.error("Error sending email:", error);
+      setMess(error instanceof Error ? error.message : "Failed to send email");
+    } finally {
+      setTimeout(() => {
+        setIsLoading((prev) => ({ ...prev, confirm: false }));
+      }, 3000);
+    }
+  };
+
+  // Modal actions
   const openEditModal = (participant: Participant) => {
     setSelectedParticipant(participant);
     setIsEditModalOpen(true);
@@ -356,14 +388,16 @@ export default function ParticipantsTable() {
     }
   };
 
+  // Filter actions
   const resetFilters = () => {
     setSearch("");
     setCohortFilter(null);
     setPaymentStatusFilter(null);
     setFilteredParticipants(participants);
+    localStorage.removeItem("selectedParticipants");
   };
 
-  // Handle checkbox selection
+  // Selection actions
   const toggleSelectAll = () => {
     if (selectAll) {
       setSelectedParticipants([]);
@@ -381,12 +415,14 @@ export default function ParticipantsTable() {
     }
   };
 
+  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredParticipants.slice(
-    indexOfFirstItem,
-    indexOfLastItem
-  );
+
+  const currentItems = useMemo(() => {
+    return filteredParticipants.slice(indexOfFirstItem, indexOfLastItem);
+  }, [filteredParticipants, indexOfFirstItem, indexOfLastItem]);
+
   const totalPages = Math.ceil(filteredParticipants.length / itemsPerPage);
 
   const handlePageChange = (pageNumber: number) => {
@@ -398,16 +434,36 @@ export default function ParticipantsTable() {
     setCurrentPage(1);
   };
 
-  if (participants.length === 0) {
+  // Handle CSV download
+  const download = () => {
+    downloadCSV(filteredParticipants, "my_data.csv");
+  };
+
+  // Helper function to format venue display
+  const formatVenue = (venue: string | string[] | null | undefined) => {
+    if (!venue) return "No Venue";
+    if (Array.isArray(venue)) {
+      return venue.length > 0 ? venue.join(", ") : "No Venue";
+    }
+    return venue;
+  };
+
+  // Modified loading condition - only show loading when no participants exist AND we're fetching
+  const shouldShowLoading = participants.length === 0 && (loading || isFetching);
+
+  if (shouldShowLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        Loading...
+        <FadeLoader color="#000000" />
+        <p className="ml-4">Loading participants...</p>
       </div>
     );
   }
 
-  console.log(participants)
-  console.log(filteredParticipants)
+  const showNumbers =
+    selectedParticipants.length > 0
+      ? selectedParticipants.length
+      : filteredParticipants.length;
 
   return (
     <main className="p-4 w-full space-y-4">
@@ -422,7 +478,7 @@ export default function ParticipantsTable() {
           Add Participant
         </Button>
 
-        <div className="flex items-center gap-2 w-2/3">
+        <div className="flex items-center gap-2 w-[60%]">
           {/* Search Input */}
           <Input
             placeholder="Filter by name, email, date registered or registration"
@@ -440,9 +496,10 @@ export default function ParticipantsTable() {
               <SelectValue placeholder="Filter by cohort" />
             </SelectTrigger>
             <SelectContent>
-              {uniqueCohorts.map((cohort) => (
-                <SelectItem key={cohort} value={cohort}>
-                  {cohort}
+              {/* <SelectItem value="all">All Programs</SelectItem> */}
+              {registration.map((register) => (
+                <SelectItem key={register.id} value={register.name}>
+                  {register.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -473,6 +530,12 @@ export default function ParticipantsTable() {
             </Button>
           )}
         </div>
+        <button
+          onClick={download}
+          className="bg-black text-[12px] text-white px-4 py-2 rounded hover:bg-green-700"
+        >
+          Download CSV ({showNumbers})
+        </button>
 
         <div className="flex items-center space-x-2">
           <span>Items per page:</span>
@@ -494,6 +557,14 @@ export default function ParticipantsTable() {
         </div>
       </div>
 
+      {/* Show loading indicator only when still fetching but have some data */}
+      {isFetching && participants.length > 0 && (
+        <div className="flex justify-center items-center py-2">
+          <FadeLoader color="#666666" height={10} width={3} />
+          <span className="ml-2 text-sm text-gray-600">Loading more participants...</span>
+        </div>
+      )}
+
       {/* Bulk actions section */}
       {selectedParticipants.length > 0 && (
         <div className="flex items-center justify-between bg-blue-50 p-2 rounded mb-2">
@@ -512,7 +583,7 @@ export default function ParticipantsTable() {
               variant="default"
               size="sm"
               onClick={() => {
-                if (selectedParticipants) {
+                if (selectedParticipants.length > 0) {
                   handleSendEmail(selectedParticipants);
                 } else {
                   alert("No participant selected");
@@ -548,13 +619,14 @@ export default function ParticipantsTable() {
             <TableHead>Email</TableHead>
             <TableHead>Cohort</TableHead>
             <TableHead>Course</TableHead>
+            <TableHead>Venue</TableHead>
             <TableHead>Payment Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {currentItems.map((participant, index) => {
-            const { id, name, email, course, cohort, payment_status } =
+            const { id, name, email, course, cohort, payment_status, venue } =
               participant;
             const serialNumber = indexOfFirstItem + index + 1;
             const isSelected = selectedParticipants.includes(id);
@@ -574,6 +646,7 @@ export default function ParticipantsTable() {
                 <TableCell>{email}</TableCell>
                 <TableCell>{cohort}</TableCell>
                 <TableCell>{course?.name || "No Course"}</TableCell>
+                <TableCell>{formatVenue(venue)}</TableCell>
                 <TableCell>
                   <span
                     className={`px-2 py-1 rounded-full text-xs ${
@@ -611,6 +684,15 @@ export default function ParticipantsTable() {
                       >
                         <MdDelete size={16} />
                       </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => sendConfirmationMail(email)}
+                        className="flex items-center gap-1"
+                      >
+                        <MdEmail size={16} />
+                        Confirmation Email
+                      </Button>
                     </div>
                   </div>
                 </TableCell>
@@ -628,28 +710,46 @@ export default function ParticipantsTable() {
         />
       </div>
 
-      {/* Create Modal */}
+      {/* Modals */}
       <CreateParticipantModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreate}
         courses={courses}
-        cohorts={cohorts}
+        cohorts={registration.map((reg) => ({
+          id: parseInt(reg.id), 
+          name: reg.name,
+          cohort: null, 
+          is_open: false, 
+          start_date: "", 
+          end_date: "", 
+          registrationFee: "", 
+          courses: {} as Course, 
+          registration: 0,
+        }))}
         isLoading={isLoading.create}
       />
 
-      {/* Edit Modal */}
       <EditParticipantModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         participant={selectedParticipant}
         onSubmit={handleEdit}
         courses={courses}
-        cohorts={cohorts}
+        cohorts={registration.map((reg) => ({
+          id: parseInt(reg.id), 
+          name: reg.name,
+          cohort: null, 
+          is_open: false,
+          start_date: "", 
+          end_date: "", 
+          registrationFee: "", 
+          courses: {} as Course, 
+          registration: 0, 
+        }))}
         isLoading={isLoading.edit}
       />
 
-      {/* Delete Modal */}
       <DeleteParticipantModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -657,17 +757,23 @@ export default function ParticipantsTable() {
         isLoading={isLoading.delete}
       />
 
-      {/* Email Modal */}
-{/*       
-      <SendEmailModal
-        isOpen={isEmailModalOpen}
-        onClose={() => setIsEmailModalOpen(false)}
-        onSend={handleSendEmail}
-        recipientCount={selectedParticipants.length}
-        isLoading={isLoading.email}
-      />
-       */}
-
+      {isLoading.confirm && (
+        <div className="fixed inset-0 flex justify-center items-center bg-gray-800 bg-opacity-50 z-50">
+          <div className="flex justify-center items-center flex-col">
+            <FadeLoader color="#ffffff" />
+            <div className="flex justify-center items-center flex-col">
+              {mes === "Confirmation email sent successfully" ? (
+                <AiFillCheckCircle className="text-white text-3xl mb-4" />
+              ) : (
+                <FaEnvelope className="text-white text-3xl mb-4" />
+              )}
+              <p className="text-white font-extrabold text-lg text-center">
+                {mes}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
