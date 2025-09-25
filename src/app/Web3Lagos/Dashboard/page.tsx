@@ -127,7 +127,7 @@ export default function Dashboard() {
       try {
 
         const response = await fetch(
-          `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/all/`,
+          `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/registration/all/`,
           {
             method: "GET",
             headers: {
@@ -179,7 +179,7 @@ export default function Dashboard() {
 
     try {
       const isCurrentlyOpen = isCourseOpen[id];
-      const enpoints = isCurrentlyOpen ? `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/close_course/` : `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${id}/open_course/`
+      const enpoints = isCurrentlyOpen ? `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/course/${id}/close_course/` : `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/course/${id}/open_course/`
 
       const response = await fetch(enpoints, {
         method: "PUT",
@@ -319,7 +319,7 @@ export default function Dashboard() {
   
     try {
       const response = await fetch(
-        "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/",
+        "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/course/",
         {
           method: "POST",
           headers: {
@@ -660,7 +660,7 @@ export default function Dashboard() {
                   {program.images.map((image) => (
                     <img
                       key={image.id}
-                      src={`https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/all${image.picture}`}
+                      src={`https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/course/all${image.picture}`}
                       alt={`Image for ${program.name}`}
                       className="w-24 h-24 object-cover rounded"
                     />

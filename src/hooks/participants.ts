@@ -32,7 +32,7 @@ export const useParticipants = () => {
         }
         
         let allParticipants: Participant[] = [];
-        let nextUrl: string | null = "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/all/";
+        let nextUrl: string | null = "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/participant/all/";
         
         while (nextUrl) {
           const response = await fetch(nextUrl, {
@@ -78,7 +78,7 @@ export const useParticipants = () => {
       console.log("Sending confirmation email to:", email);
       try {
         const response = await fetch(
-          "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/send-confirmation-email/",
+          "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/participant/send-confirmation-email/",
           {
             method: "POST",
             headers: {

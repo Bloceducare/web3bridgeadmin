@@ -102,7 +102,7 @@ function page() {
             
                 for (const courseID of id) {
                   const response = await fetch(
-                    `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/course/${courseID}`,
+                    `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/course/${courseID}`,
                     {
                       method: "GET",
                       headers: {
@@ -177,7 +177,7 @@ function page() {
 
         try {
           const isCurrentlyOpen = isRegistratinOpen[id];
-          const enpoints = isCurrentlyOpen ? `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/${id}/close_registration/` : `https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/${id}/open_registration/`
+          const enpoints = isCurrentlyOpen ? `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/registration/${id}/close_registration/` : `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/registration/${id}/open_registration/`
 
           const response = await fetch(enpoints, {
             method: "PUT",
@@ -224,7 +224,7 @@ const handleChange = (
 
         try {
             const response = await fetch(
-                "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/registration/",
+                "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/registration/",
                 {
                   method: "POST",
                   headers: {

@@ -94,7 +94,7 @@ function Page() {
     };
     try {
       const response = await fetch(
-        'https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/bulk-email/send_bulk_email/',
+        'https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/bulk-email/send_bulk_email/',
         {
           method: 'POST',
           headers: {
