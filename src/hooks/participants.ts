@@ -12,7 +12,7 @@ export const useParticipants = () => {
         setError(null);
         setParticipants([]); 
         let nextUrl: string | null =
-          "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/all/";
+          "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/participant/all/";
   
         while (nextUrl) {
           const response = await fetch(nextUrl, {
@@ -53,7 +53,7 @@ export const useParticipants = () => {
       console.log ("Sending confirmation email to:", JSON.stringify(email));
       try {
         const response = await fetch(
-          "https://web3bridgewebsitebackend.onrender.com/api/v2/cohort/participant/send-confirmation-email/",
+          "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/participant/send-confirmation-email/",
           {
             method: "POST",
             headers: {

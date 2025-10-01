@@ -13,7 +13,7 @@ export const fetchAllDiscount = async (
 
     try {
         const response = await fetch(
-            `https://web3bridgewebsitebackend.onrender.com/api/v2/payment/discount/all/`,
+            `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/payment/discount/all/`,
             {
               method: "GET",
               headers: {
@@ -43,7 +43,7 @@ export const deleteCode = async ( id: number, token: string,
 
         try {
             const response = await fetch(
-              `https://web3bridgewebsitebackend.onrender.com/api/v2/payment/discount/${id}/`,
+              `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/payment/discount/${id}/`,
               {
                 method: "DELETE",
                 headers: {
@@ -97,7 +97,7 @@ export const generateDiscountCode = async (
   }
 
   try {
-    const response = await fetch(`https://web3bridgewebsitebackend.onrender.com/api/v2/payment/discount/generate/`, {
+    const response = await fetch(`https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/payment/discount/generate/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -140,7 +140,7 @@ export const validateDiscountCode = async (
   }
 
   try {
-    const response = await fetch(`https://web3bridgewebsitebackend.onrender.com/api/v2/payment/discount/validate/`, {
+    const response = await fetch(`https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/payment/discount/validate/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
