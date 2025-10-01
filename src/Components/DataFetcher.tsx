@@ -38,14 +38,14 @@ const DataFetcher: React.FC<DataFetcherProps> = ({ children }) => {
   useEffect(() => {
     async function fetchRegistrations() {
       try {
-        const generalRegistrations = await fetch('https://web3lagosbackend.onrender.com/api/general-registrations/', {
+        const generalRegistrations = await fetch('https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/general-registrations/', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
 
-        const speakerRegistrations = await fetch('https://web3lagosbackend.onrender.com/api/speaker-registrations/', {
+        const speakerRegistrations = await fetch('https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/speaker-registrations/', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

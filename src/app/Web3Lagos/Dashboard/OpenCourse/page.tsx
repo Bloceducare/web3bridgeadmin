@@ -484,7 +484,7 @@ export default function OpenCourse() {
                         {program.images.map((image) => (
                           <img
                             key={image.id}
-                            src={`https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/${image.picture}`}
+                            src={`https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/${image.picture}`}
                             alt={`Image for ${program.name}`}
                             className="w-24 h-24 object-cover rounded"
                           />

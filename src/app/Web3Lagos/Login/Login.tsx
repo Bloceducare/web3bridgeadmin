@@ -69,11 +69,12 @@ const Login = () => {
     };
 
     console.log(formDataToSend)
+    
 
     try {
     console.log(formDataToSend)
     const response = await fetch(
-      "https://web3bridgeauth-y4kb.onrender.com/accounts/signin/",
+      "https://overall-ofella-web3bridge-270edff0.koyeb.app/accounts/signin/",
       {
         method: "POST",
         headers: {

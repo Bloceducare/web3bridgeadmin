@@ -25,15 +25,11 @@ export const useParticipants = () => {
         setIsFetching(true);
         setLoading(true);
         setError(null);
-        
-        // Clear existing participants before fetching new ones if forced refresh
-        if (forceRefresh) {
-          setParticipants([]);
-        }
-        
+        setParticipants([]); 
+        let nextUrl: string | null =
+          "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/participant/all/";
         let allParticipants: Participant[] = [];
-        let nextUrl: string | null = "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/participant/all/";
-        
+  
         while (nextUrl) {
           const response = await fetch(nextUrl, {
             method: "GET",
