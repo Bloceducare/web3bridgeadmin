@@ -74,7 +74,7 @@ const Login = () => {
     try {
     console.log(formDataToSend)
     const response = await fetch(
-      "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/accounts/signin/",
+      "https://overall-ofella-web3bridge-270edff0.koyeb.app/accounts/signin/",
       {
         method: "POST",
         headers: {
