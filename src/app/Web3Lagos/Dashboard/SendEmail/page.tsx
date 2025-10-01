@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import DOMPurify from 'dompurify';
 import { Participant } from '@/hooks/interface';
 import { useParticipantsStore } from '@/stores/useParticipantsStore';
 import { fetchCohorts } from '@/hooks/useUpdateCourse';
@@ -117,7 +116,7 @@ function Page() {
     } catch (error) {
       setStatusMessage('Error sending message. Please try again.');
       setIsSuccess(false);
-    localStorage.removeItem("selectedParticipants");
+      localStorage.removeItem("selectedParticipants");
     } 
   };
 

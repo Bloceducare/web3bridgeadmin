@@ -17,6 +17,7 @@ export const flattenParticipantData = (participants: any[]) => {
     payment_status: participant.payment_status ? "Paid" : "Unpaid",
     created_at: participant.created_at || "",
     updated_at: participant.updated_at || "",
+    location: participant.venue || "",
 
     // Course details (nested)
     course_name: participant.course?.name || "",
