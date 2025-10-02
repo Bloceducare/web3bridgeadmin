@@ -72,7 +72,7 @@ export const fetchAllDiscount = async (
         const limit = pagination?.limit || PAGINATION_CONFIG.DEFAULT_LIMIT;
         
         const response = await fetch(
-            `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/payment/discount/all/?page=${page}&limit=${limit}`,
+            `${API_CONFIG.API_URL}/discount/all/?page=${page}&limit=${limit}`,
             {
               method: "GET",
               headers: {
@@ -200,7 +200,7 @@ export const deleteCode = async ( id: number, token: string,
 
         try {
             const response = await fetch(
-              `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/payment/discount/${id}/`,
+              `${API_CONFIG.API_URL}/discount/${id}/`,
               {
                 method: "DELETE",
                 headers: {
@@ -255,7 +255,7 @@ export const generateDiscountCode = async (
   }
 
   try {
-    const response = await fetch(`https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/payment/discount/generate/`, {
+    const response = await fetch(`${API_CONFIG.API_URL}/discount/generate/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -405,7 +405,7 @@ export const generateCustomDiscountCode = async (
   }
 
   try {
-    const response = await fetch(`https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/payment/discount/generate_custom/`, {
+    const response = await fetch(`${API_CONFIG.API_URL}/discount/generate_custom/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

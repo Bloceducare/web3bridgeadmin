@@ -75,8 +75,12 @@ function page() {
 
      useEffect(() => {
              const token = localStorage.getItem("token") || "";
-             setToken(token)
-             loadAllDiscountCodes(token);
+             if (token) {
+               setToken(token);
+               loadAllDiscountCodes(token);
+             } else {
+               setError("No authentication token found. Please log in again.");
+             }
    }, []);
 
    const loadAllDiscountCodes = async (token: string) => {
@@ -132,8 +136,12 @@ function page() {
          await fetchAllDiscount(
            token, 
            (codes) => {
-             // Append new codes to existing ones
-             setDiscountCodes(prev => [...prev, ...codes]);
+             // Append new codes to existing ones, avoiding duplicates
+             setDiscountCodes(prev => {
+               const existingIds = new Set(prev.map(code => code.id));
+               const newCodes = codes.filter(code => !existingIds.has(code.id));
+               return [...prev, ...newCodes];
+             });
            }, 
            setError, 
            undefined,
@@ -465,6 +473,124 @@ function page() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Discount Code Management</h1>
           <p className="text-gray-600">Manage and monitor your discount codes with advanced analytics</p>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">Overview</h2>
+            <button
+              onClick={() => loadAllDiscountCodes(token)}
+              disabled={loading.other}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+            >
+              <RefreshCw size={16} className={loading.other ? "animate-spin" : ""} />
+              Refresh Data
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white p-6 rounded-xl shadow-lg border border-gray-100"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Codes</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {loading.other ? (
+                    <BeatLoader size={8} color="#3B82F6" />
+                  ) : (
+                    paginationInfo?.total_count || discountCodes.length || 0
+                  )}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white p-6 rounded-xl shadow-lg border border-gray-100"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Used Codes</p>
+                <p className="text-3xl font-bold text-red-600">
+                  {loading.other ? (
+                    <BeatLoader size={8} color="#EF4444" />
+                  ) : (
+                    discountCodes.filter(code => code.is_used).length
+                  )}
+                </p>
+              </div>
+              <div className="p-3 bg-red-100 rounded-lg">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white p-6 rounded-xl shadow-lg border border-gray-100"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Available Codes</p>
+                <p className="text-3xl font-bold text-green-600">
+                  {loading.other ? (
+                    <BeatLoader size={8} color="#10B981" />
+                  ) : (
+                    discountCodes.filter(code => !code.is_used).length
+                  )}
+                </p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white p-6 rounded-xl shadow-lg border border-gray-100"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Usage Rate</p>
+                <p className="text-3xl font-bold text-purple-600">
+                  {loading.other ? (
+                    <BeatLoader size={8} color="#8B5CF6" />
+                  ) : discountCodes.length > 0 ? (
+                    `${Math.round((discountCodes.filter(code => code.is_used).length / discountCodes.length) * 100)}%`
+                  ) : (
+                    "0%"
+                  )}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+            </div>
+          </motion.div>
+          </div>
         </div>
 
         {/* Action Cards */}
