@@ -6,7 +6,7 @@ import { Trash2, LockKeyholeOpen,  } from 'lucide-react';
 import {BeatLoader} from 'react-spinners';
 import { handledeleteProgram, fetchRegistrationData } from '@/hooks/useUpdateProgram';
 import { motion, AnimatePresence } from "framer-motion"
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/Components/ui/dialog";
 
 
 interface Registration {
@@ -82,6 +82,14 @@ function page() {
         wait: false,
         view: {}
       }); 
+
+      const [selectedProgram, setSelectedProgram] = useState<Registration | null>(null);
+      const [isEditOpen, setIsEditOpen] = useState(false);
+      const [editForm, setEditForm] = useState<FormData>(initialFormState);
+      const [editErrors, setEditErrors] = useState<FormErrors>(initialFormErrors);
+      const [editLoading, setEditLoading] = useState(false);
+      const [editMessage, setEditMessage] = useState<string>("");
+
 
       useEffect(() => {
         const token = localStorage.getItem("token") || "";
@@ -357,6 +365,7 @@ const handleChange = (
                                 </span>
                               )}
                               </button>
+                        <button className="bg-blue-700 px-2 text-white rounded-md py-1" onClick={() => { setSelectedProgram(register); setEditForm({ name: register.name, cohort: register.cohort ?? "", registrationFee: register.registrationFee, start_date: register.start_date, end_date: register.end_date }); setIsEditOpen(true); }}>Edit</button>
                         <button onClick={() => handleDelete(register.id)}>{loading.delete[register.id] ? <BeatLoader size={5} />: <Trash2 /> }</button>
 
                         </div>
@@ -429,6 +438,67 @@ const handleChange = (
     </motion.div>
        )}
        </AnimatePresence>
+
+       {/* Edit Modal/Dialog */}
+       <Dialog open={isEditOpen} onOpenChange={open => { setIsEditOpen(open); if (!open) setEditMessage(""); }}>
+         <DialogContent className="max-w-lg w-full">
+           <DialogHeader>
+             <DialogTitle>Edit Program</DialogTitle>
+           </DialogHeader>
+           <form onSubmit={async (e) => {
+             e.preventDefault();
+             setEditErrors(initialFormErrors);
+             setEditLoading(true);
+             try {
+               if (!selectedProgram) return;
+               const response = await fetch(`https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/registration/${selectedProgram.id}/`, {
+                 method: "PUT",
+                 headers: { Authorization: `${token}`, "Content-Type": "application/json" },
+                 body: JSON.stringify(editForm),
+               });
+               const data = await response.json();
+               if (response.ok && data.success) {
+                 setEditMessage("Program updated successfully.");
+                 // update registration list in place
+                 setRegistration((prev) => prev.map(r => r.id === selectedProgram.id ? { ...r, ...editForm } : r));
+                 setTimeout(() => { setIsEditOpen(false); setEditMessage(""); }, 1500);
+               } else {
+                 setEditMessage(data.message || "Update failed");
+               }
+             } catch (error:any) {
+               setEditMessage(error.message || "Update error");
+             } finally {
+               setEditLoading(false);
+             }
+           }} className="space-y-6 mt-2">
+             <div>
+               <label className='font-bold'>Name</label>
+               <input type='text' name='name' value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="border w-full px-2 h-[5vh]" required />
+             </div>
+             <div>
+               <label className='font-bold'>Cohort</label>
+               <input type='text' name='cohort' value={editForm.cohort} onChange={e => setEditForm(f => ({ ...f, cohort: e.target.value }))} className="border w-full px-2 h-[5vh]" required />
+             </div>
+             <div>
+               <label className='font-bold'>Registration Fee</label>
+               <input type='text' name='registrationFee' value={editForm.registrationFee} onChange={e => setEditForm(f => ({ ...f, registrationFee: e.target.value }))} className="border w-full px-2 h-[5vh]" required />
+             </div>
+             <div>
+               <label className='font-bold'>Open Date</label>
+               <input type="date" name="start_date" value={editForm.start_date} onChange={e => setEditForm(f => ({ ...f, start_date: e.target.value }))} className="border w-full" required />
+             </div>
+             <div>
+               <label className='font-bold'>Close Date</label>
+               <input type="date" name="end_date" value={editForm.end_date} onChange={e => setEditForm(f => ({ ...f, end_date: e.target.value }))} className="border w-full" required />
+             </div>
+             <div className="flex gap-2 mt-2">
+               <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50" disabled={editLoading}>{editLoading ? <BeatLoader size={8} color="#fff" /> : "Save"}</button>
+               <button type="button" className="border px-4 py-2 rounded" onClick={() => setIsEditOpen(false)}>Cancel</button>
+             </div>
+             {!!editMessage && <div className="text-center text-sm mt-2 text-blue-800">{editMessage}</div>}
+           </form>
+         </DialogContent>
+       </Dialog>
     </div>
   )
 }
