@@ -120,8 +120,8 @@ export default function VettingPage() {
         alert(`Participant "${participant.name}" has been approved, but email sending failed. Please send manually.`);
       }
 
-      // 3. Refresh the data
-      fetchParticipants(token, true);
+      // 3. Update the participant in the store without refetching
+      updateParticipant(participant.id, { status: "approved" });
     } catch (error) {
       console.error("Error approving participant:", error);
       alert(error instanceof Error ? error.message : "Failed to approve participant");
@@ -170,8 +170,8 @@ export default function VettingPage() {
 
       alert(`Participant "${participant.name}" has been rejected.`);
       
-      // Refresh the data
-      fetchParticipants(token, true);
+      // Update the participant in the store without refetching
+      updateParticipant(participant.id, { status: "rejected" });
     } catch (error) {
       console.error("Error rejecting participant:", error);
       alert(error instanceof Error ? error.message : "Failed to reject participant");
