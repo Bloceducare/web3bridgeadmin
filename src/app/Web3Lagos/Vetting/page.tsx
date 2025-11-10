@@ -160,41 +160,30 @@ export default function VettingPage() {
     setIsApproving(participant.id);
 
     try {
-      // 1. Update status to approved
-      const updateResponse = await fetch(
-        `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/participant/${participant.id}/`,
+      // Call the approve endpoint
+      const approveResponse = await fetch(
+        `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/participant/${participant.id}/approve/`,
         {
-          method: "PUT",
+          method: "POST",
           headers: {
             Authorization: token,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            ...participant,
-            status: "approved",
-          }),
         }
       );
 
-      if (!updateResponse.ok) {
-        throw new Error("Failed to update participant status");
+      if (!approveResponse.ok) {
+        const errorData = await approveResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to approve participant");
       }
 
-      const updateResult = await updateResponse.json();
-      if (!updateResult.success) {
-        throw new Error(updateResult.message || "Failed to update status");
+      const result = await approveResponse.json();
+      if (!result.success) {
+        throw new Error(result.message || "Failed to approve participant");
       }
 
-      // 2. Send confirmation email
-      try {
-        await sendConfirmationEmail(token, participant.email);
-        alert(`Participant "${participant.name}" has been approved and confirmation email sent!`);
-      } catch (emailError) {
-        console.error("Error sending email:", emailError);
-        alert(`Participant "${participant.name}" has been approved, but email sending failed. Please send manually.`);
-      }
-
-      // 3. Update the participant in the store without refetching
+      alert(`Participant \"${participant.name}\" has been approved. They will receive an email confirmation.`);
+      // Update local store
       updateParticipant(participant.id, { status: "approved" });
     } catch (error) {
       console.error("Error approving participant:", error);
