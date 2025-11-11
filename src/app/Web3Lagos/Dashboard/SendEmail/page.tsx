@@ -39,14 +39,14 @@ function Page() {
   };
 
   const [filters, setFilters] = useState<FilterFields>({
-    cohort: '',
+    cohort: 'all',
     paymentStatus: null,
-    course: '',
-    gender: '',
-    country: '',
-    city: '',
-    state: '',
-    status: '',
+    course: 'all',
+    gender: 'all',
+    country: 'all',
+    city: 'all',
+    state: 'all',
+    status: 'all',
   });
 
   useEffect(() => {
@@ -154,14 +154,14 @@ function Page() {
   const handleAdvancedFilter = () => {
     if (selectedParticipants.length > 0) return;
     const filtered = participants.filter((p) => {
-      const matchesCohort = filters.cohort.trim() === '' || p.cohort?.toLowerCase() === filters.cohort.toLowerCase();
+      const matchesCohort = filters.cohort === 'all' || p.cohort?.toLowerCase() === filters.cohort.toLowerCase();
       const matchesPayment = filters.paymentStatus === null || p.payment_status === filters.paymentStatus;
-      const matchesCourse = filters.course.trim() === '' || p.course?.name?.toLowerCase() === filters.course.toLowerCase();
-      const matchesGender = filters.gender.trim() === '' || p.gender?.toLowerCase() === filters.gender.toLowerCase();
-      const matchesCountry = filters.country.trim() === '' || p.country?.toLowerCase() === filters.country.toLowerCase();
-      const matchesCity = filters.city.trim() === '' || p.city?.toLowerCase() === filters.city.toLowerCase();
-      const matchesState = filters.state.trim() === '' || p.state?.toLowerCase() === filters.state.toLowerCase();
-      const matchesStatus = filters.status.trim() === '' || p.status?.toLowerCase() === filters.status.toLowerCase();
+      const matchesCourse = filters.course === 'all' || p.course?.name?.toLowerCase() === filters.course.toLowerCase();
+      const matchesGender = filters.gender === 'all' || p.gender?.toLowerCase() === filters.gender.toLowerCase();
+      const matchesCountry = filters.country === 'all' || p.country?.toLowerCase() === filters.country.toLowerCase();
+      const matchesCity = filters.city === 'all' || p.city?.toLowerCase() === filters.city.toLowerCase();
+      const matchesState = filters.state === 'all' || p.state?.toLowerCase() === filters.state.toLowerCase();
+      const matchesStatus = filters.status === 'all' || p.status?.toLowerCase() === filters.status.toLowerCase();
       return (
         matchesCohort && matchesPayment && matchesCourse &&
         matchesGender && matchesCountry && matchesCity && matchesState && matchesStatus
@@ -242,7 +242,7 @@ function Page() {
                 <Select value={filters.cohort} onValueChange={val => setFilters(f => ({ ...f, cohort: val }))}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Programs" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Programs</SelectItem>
+                    <SelectItem value="all">All Programs</SelectItem>
                     {registration.map((reg) => <SelectItem key={reg.id} value={reg.name}>{reg.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -250,12 +250,12 @@ function Page() {
               <div>
                 <label className="font-semibold block mb-1">Payment Status</label>
                 <Select
-                  value={filters.paymentStatus === null ? "" : filters.paymentStatus ? "paid" : "unpaid"}
-                  onValueChange={val => setFilters(f => ({ ...f, paymentStatus: val === "" ? null : val === "paid" } ))}
+                  value={filters.paymentStatus === null ? "all" : filters.paymentStatus ? "paid" : "unpaid"}
+                  onValueChange={val => setFilters(f => ({ ...f, paymentStatus: val === "all" ? null : val === "paid" } ))}
                 >
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Payment Status" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Payment Status</SelectItem>
+                    <SelectItem value="all">All Payment Status</SelectItem>
                     <SelectItem value="paid">Paid</SelectItem>
                     <SelectItem value="unpaid">Not Paid</SelectItem>
                   </SelectContent>
@@ -266,7 +266,7 @@ function Page() {
                 <Select value={filters.course} onValueChange={val => setFilters(f => ({ ...f, course: val }))}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Courses" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Courses</SelectItem>
+                    <SelectItem value="all">All Courses</SelectItem>
                     {allCourses.map(course => <SelectItem key={course} value={course}>{course}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -276,7 +276,7 @@ function Page() {
                 <Select value={filters.gender} onValueChange={val => setFilters(f => ({ ...f, gender: val }))}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Genders" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Genders</SelectItem>
+                    <SelectItem value="all">All Genders</SelectItem>
                     {allGenders.map(gender => <SelectItem key={gender} value={gender}>{gender}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -286,7 +286,7 @@ function Page() {
                 <Select value={filters.country} onValueChange={val => setFilters(f => ({ ...f, country: val }))}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Countries" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Countries</SelectItem>
+                    <SelectItem value="all">All Countries</SelectItem>
                     {allCountries.map(country => <SelectItem key={country} value={country}>{country}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -296,7 +296,7 @@ function Page() {
                 <Select value={filters.city} onValueChange={val => setFilters(f => ({ ...f, city: val }))}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Cities" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Cities</SelectItem>
+                    <SelectItem value="all">All Cities</SelectItem>
                     {allCities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -306,7 +306,7 @@ function Page() {
                 <Select value={filters.state} onValueChange={val => setFilters(f => ({ ...f, state: val }))}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="All States" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All States</SelectItem>
+                    <SelectItem value="all">All States</SelectItem>
                     {allStates.map(state => <SelectItem key={state} value={state}>{state}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -316,7 +316,7 @@ function Page() {
                 <Select value={filters.status} onValueChange={val => setFilters(f => ({ ...f, status: val }))}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Statuses" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Statuses</SelectItem>
+                    <SelectItem value="all">All Statuses</SelectItem>
                     {allStatuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
                   </SelectContent>
                 </Select>
