@@ -6,6 +6,7 @@ import { useParticipantsStore } from '@/stores/useParticipantsStore';
 import { fetchCohorts } from '@/hooks/useUpdateCourse';
 import dynamic from "next/dynamic";
 import "react-quill/dist/quill.snow.css";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select";
 
 const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
 
@@ -24,6 +25,29 @@ function Page() {
   const [loading, setLoading] = useState({ other: true });
   const [selectedParticipants, setSelectedParticipants] = useState<number[]>([]);
   const [show, setShow] = useState(false);
+
+  // Add state for new filters
+  type FilterFields = {
+    cohort: string;
+    paymentStatus: boolean | null;
+    course: string;
+    gender: string;
+    country: string;
+    city: string;
+    state: string;
+    status: string;
+  };
+
+  const [filters, setFilters] = useState<FilterFields>({
+    cohort: '',
+    paymentStatus: null,
+    course: '',
+    gender: '',
+    country: '',
+    city: '',
+    state: '',
+    status: '',
+  });
 
   useEffect(() => {
     const stored = localStorage.getItem("selectedParticipants");
@@ -127,6 +151,32 @@ function Page() {
     setFilteredParticipants(participants);
   }
 
+  const handleAdvancedFilter = () => {
+    if (selectedParticipants.length > 0) return;
+    const filtered = participants.filter((p) => {
+      const matchesCohort = filters.cohort.trim() === '' || p.cohort?.toLowerCase() === filters.cohort.toLowerCase();
+      const matchesPayment = filters.paymentStatus === null || p.payment_status === filters.paymentStatus;
+      const matchesCourse = filters.course.trim() === '' || p.course?.name?.toLowerCase() === filters.course.toLowerCase();
+      const matchesGender = filters.gender.trim() === '' || p.gender?.toLowerCase() === filters.gender.toLowerCase();
+      const matchesCountry = filters.country.trim() === '' || p.country?.toLowerCase() === filters.country.toLowerCase();
+      const matchesCity = filters.city.trim() === '' || p.city?.toLowerCase() === filters.city.toLowerCase();
+      const matchesState = filters.state.trim() === '' || p.state?.toLowerCase() === filters.state.toLowerCase();
+      const matchesStatus = filters.status.trim() === '' || p.status?.toLowerCase() === filters.status.toLowerCase();
+      return (
+        matchesCohort && matchesPayment && matchesCourse &&
+        matchesGender && matchesCountry && matchesCity && matchesState && matchesStatus
+      );
+    });
+    setFilteredParticipants(filtered);
+  };
+
+  const allCourses = Array.from(new Set(participants.map((p) => p.course?.name).filter(Boolean)));
+  const allGenders = Array.from(new Set(participants.map((p) => p.gender).filter(Boolean)));
+  const allCountries = Array.from(new Set(participants.map((p) => p.country).filter(Boolean)));
+  const allCities = Array.from(new Set(participants.map((p) => p.city).filter(Boolean)));
+  const allStates = Array.from(new Set(participants.map((p) => p.state).filter(Boolean)));
+  const allStatuses = Array.from(new Set(participants.map((p) => p.status).filter(Boolean)));
+
   return (
     <div className="w-full overflow-hidden p-4">
       <div className="mt-8 text-center">
@@ -185,95 +235,102 @@ function Page() {
       />
           </div>
           <p className='mt-10'>Compose the email message that will be sent to the recipients</p>
-          <section className='bg-gray-300 px-10 py-7 rounded-lg'>
-            {show ? (
-              <p>You have  ({selectedParticipants.length}) selected Participants</p>
-            ) : (
-              <section> 
-                     <div className='text-2xl font-semibold'>
-              <h1>Filter Participants</h1>
-            </div>
-            <div className='flex flex-col md:flex-col gap-4 mt-5'>
-              <div className='space-y-4'>
-                <p className="font-semibold">Select program</p>
-                <select
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setCohortFilter(value === "all" ? "" : value);
-                  }}
-                  defaultValue="all"
-                  className='border p-2 rounded-lg w-full md:w-1/2 outline-none'
+          <section className='bg-gray-100 px-8 py-7 rounded-lg'>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div>
+                <label className="font-semibold block mb-1">Program</label>
+                <Select value={filters.cohort} onValueChange={val => setFilters(f => ({ ...f, cohort: val }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="All Programs" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Programs</SelectItem>
+                    {registration.map((reg) => <SelectItem key={reg.id} value={reg.name}>{reg.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="font-semibold block mb-1">Payment Status</label>
+                <Select
+                  value={filters.paymentStatus === null ? "" : filters.paymentStatus ? "paid" : "unpaid"}
+                  onValueChange={val => setFilters(f => ({ ...f, paymentStatus: val === "" ? null : val === "paid" } ))}
                 >
-                  <option value="all">All Programs</option>
-                  {registration.map((register) => (
-                    <option key={register.id} value={register.name}>
-                      {register.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="All Payment Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Payment Status</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="unpaid">Not Paid</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-
-              <div className='space-y-4'>
-                <h1>Select Payment Status</h1>
-                <div className="flex space-x-4">         
-                  <label className="flex items-center space-x-1">
-                    <input
-                      type="radio"
-                      name="paymentStatus"
-                      value="all"
-                      defaultChecked
-                      onChange={() => setPaymentStatusFilter(null)}
-                      className="form-radio"
-                    />
-                    <span>All Payment Status</span>
-                  </label>
-                  <label className="flex items-center space-x-1">
-                    <input
-                      type="radio"
-                      name="paymentStatus"
-                      value="true"
-                      onChange={() => setPaymentStatusFilter(true)}
-                      className="form-radio"
-                    />
-                    <span>Paid</span>
-                  </label>
-                  <label className="flex items-center space-x-1">
-                    <input
-                      type="radio"
-                      name="paymentStatus"
-                      value="false"
-                      onChange={() => setPaymentStatusFilter(false)}
-                      className="form-radio"
-                    />
-                    <span>Not Paid</span>
-                  </label>
-                </div>
+              <div>
+                <label className="font-semibold block mb-1">Course</label>
+                <Select value={filters.course} onValueChange={val => setFilters(f => ({ ...f, course: val }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="All Courses" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Courses</SelectItem>
+                    {allCourses.map(course => <SelectItem key={course} value={course}>{course}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="font-semibold block mb-1">Gender</label>
+                <Select value={filters.gender} onValueChange={val => setFilters(f => ({ ...f, gender: val }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="All Genders" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Genders</SelectItem>
+                    {allGenders.map(gender => <SelectItem key={gender} value={gender}>{gender}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="font-semibold block mb-1">Country</label>
+                <Select value={filters.country} onValueChange={val => setFilters(f => ({ ...f, country: val }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="All Countries" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Countries</SelectItem>
+                    {allCountries.map(country => <SelectItem key={country} value={country}>{country}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="font-semibold block mb-1">City</label>
+                <Select value={filters.city} onValueChange={val => setFilters(f => ({ ...f, city: val }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="All Cities" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Cities</SelectItem>
+                    {allCities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="font-semibold block mb-1">State</label>
+                <Select value={filters.state} onValueChange={val => setFilters(f => ({ ...f, state: val }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="All States" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All States</SelectItem>
+                    {allStates.map(state => <SelectItem key={state} value={state}>{state}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="font-semibold block mb-1">Status</label>
+                <Select value={filters.status} onValueChange={val => setFilters(f => ({ ...f, status: val }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Statuses</SelectItem>
+                    {allStatuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-              <button
-              onClick={handleFilter}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+            <button
+              onClick={handleAdvancedFilter}
+              className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg transition mt-3 w-full md:w-auto"
             >
-              <div className="text-center">
-                {selectedParticipants.length > 0 ? (
-                  <p>
-                    <b>Selected Participants</b> ({selectedParticipants.length})
-                  </p>
-                ) : (
-                  <p>
-                    <b>Filtered Participants</b> ({filteredParticipants.length})
-                  </p>
-                )}
-              </div>
+              Filter Participants
             </button>
-
+            <div className="text-center mt-2 text-gray-600">
+              <b>{filteredParticipants.length}</b> filtered participants will receive your message (unless overridden by manual selection).
             </div>
-
-                </section>
-            )}
-       
-
-      
-         
           </section>
           <button
               onClick={handleSendFilteredEmails}
