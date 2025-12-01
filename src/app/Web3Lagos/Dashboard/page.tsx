@@ -104,28 +104,31 @@ export default function Dashboard() {
   const [selectedPrograms, setSelectedPrograms] = useState<number[]>([]);
   const [isCourseOpen, setIsCourseOpen] = useState< {[key: number]: boolean}>({})
   const [isUpdateOpen, setIsUpdateOpen] = useState<boolean>(false); 
-  const { fetchParticipants } = useParticipants();
-  const { participants, } = useParticipantsStore();
+  // Removed participants fetch - not needed for Dashboard page
   
 
   
   useEffect(() => {
     const token = localStorage.getItem("token") || "";
-    setToken(token)
-    fetchPrograms(token,  setPrograms, setIsCourseOpen, setError, setLoading);
+    setToken(token);
+    // Fetch programs and registrations in parallel for faster loading
+    if (token) {
+      Promise.all([
+        fetchPrograms(token, setPrograms, setIsCourseOpen, setError, setLoading),
+      ]).catch((error) => {
+        console.error("Error loading dashboard data:", error);
+        setError("Failed to load dashboard data");
+      });
+    }
   }, []);
 
-  useEffect(() => {
-    if (participants.length === 0) {
-      fetchParticipants(token);
-    }
-  }, [participants.length, fetchParticipants, token]);
+  // Only fetch participants if we actually need them (not needed for Dashboard)
+  // Participants are only needed when viewing the participants page or sending emails
+  // This prevents unnecessary data loading on dashboard
 
   useEffect(() => {
-
     const fetchRegistration = async () => {
       try {
-
         const response = await fetch(
           `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/registration/all/`,
           {
@@ -152,8 +155,10 @@ export default function Dashboard() {
       }
     };
 
-    fetchRegistration();
-  }, []);
+    if (token) {
+      fetchRegistration();
+    }
+  }, [token]);
 
   const toggleDescription = (programId: number) => {
     setExpandedDescriptionId((prev) => (prev === programId ? null : programId)); 

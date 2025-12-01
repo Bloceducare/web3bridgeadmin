@@ -92,7 +92,7 @@ export default function ParticipantsTable() {
     deleteParticipant,
     lastRefreshed,
   } = useParticipantsStore();
-  const { fetchParticipants, sendConfirmationEmail, isFetching, silentRefresh } =
+  const { fetchParticipants, sendConfirmationEmail, isFetching, silentRefresh, loadAllPages } =
     useParticipants();
 
   // Local state
@@ -142,11 +142,12 @@ export default function ParticipantsTable() {
     if (storedToken) setToken(storedToken);
   }, []);
 
-  // Fetch participants - modified to allow multiple fetches and show data immediately
+  // Fetch participants - load all pages automatically
   useEffect(() => {
     if (token && !isFetching && !hasFetchedOnce) {
       setHasFetchedOnce(true);
-      fetchParticipants(token);
+      // Load all pages automatically (loadAllPages = true by default now)
+      fetchParticipants(token, false, false, true);
     }
   }, [token, fetchParticipants, isFetching, hasFetchedOnce]);
 
@@ -300,7 +301,17 @@ export default function ParticipantsTable() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await fetchParticipants(token, true);
+      await fetchParticipants(token, true, false, false);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  };
+
+  // Handle loading all pages
+  const handleLoadAll = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadAllPages();
     } finally {
       setTimeout(() => setIsRefreshing(false), 1000);
     }
@@ -616,6 +627,18 @@ export default function ParticipantsTable() {
             <MdRefresh className={isRefreshing ? "animate-spin" : ""} size={20} />
             Refresh
           </Button>
+          {participants.length > 0 && participants.length < 1000 && (
+            <Button
+              variant="outline"
+              onClick={handleLoadAll}
+              disabled={isRefreshing || isFetching}
+              className="flex items-center gap-2"
+              title="Load all participants (may take a moment)"
+            >
+              <MdRefresh size={20} />
+              Load All
+            </Button>
+          )}
           <Button
             onClick={() => setIsCreateModalOpen(true)}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"

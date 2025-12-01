@@ -45,13 +45,20 @@ export interface Participant {
   }
   
   
+export interface PaginationInfo {
+  current_page: number;
+  limit: number;
+  has_next: boolean;
+  has_previous: boolean;
+  next_page: number | null;
+  previous_page: number | null;
+}
+
 export interface ApiResponse {
     success: boolean;
     data: {
-      count: number;
-      next: null | string;
-      previous: null | string;
       results: Participant[];
+      pagination: PaginationInfo;
     };
   }
 

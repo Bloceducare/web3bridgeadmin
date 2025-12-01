@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Participant } from '@/hooks/interface';
 import { useParticipantsStore } from '@/stores/useParticipantsStore';
+import { useParticipants } from '@/hooks/participants';
 import { fetchCohorts } from '@/hooks/useUpdateCourse';
 import dynamic from "next/dynamic";
 import "react-quill/dist/quill.snow.css";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select";
 
-const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
+const ReactQuill = dynamic(() => import("react-quill"), { ssr: false, loading: () => <div className="h-[30vh] bg-gray-100 animate-pulse rounded" /> });
 
 function Page() {
   const [message, setMessage] = useState('');
@@ -17,7 +18,8 @@ function Page() {
   const [isSuccess, setIsSuccess] = useState<boolean | null>(null);
   const [token, setToken] = useState("");
   const [filteredParticipants, setFilteredParticipants] = useState<Participant[]>([]);
-  const { participants } = useParticipantsStore();
+  const { participants, hasLoaded } = useParticipantsStore();
+  const { fetchParticipants, isFetching } = useParticipants();
   const [cohortFilter, setCohortFilter] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<boolean | null>(null);
   const [registration, setRegistration] = useState<{ id: string; name: string }[]>([]);
@@ -71,16 +73,22 @@ function Page() {
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
-    if (storedToken) setToken(storedToken);
-  }, []);
+    if (storedToken) {
+      setToken(storedToken);
+      // Only fetch participants if not already loaded
+      if (!hasLoaded && !isFetching) {
+        fetchParticipants(storedToken, false, false, false);
+      }
+    }
+  }, [hasLoaded, isFetching, fetchParticipants]);
 
-  const handleFilter = () => {
+  const handleFilter = useCallback(() => {
     if (selectedParticipants.length > 0) return;
   
     const filtered = participants.filter((p) => {
       const matchesCohort =
         cohortFilter.trim() === '' ||
-        p.cohort.toLowerCase() === cohortFilter.toLowerCase();
+        p.cohort?.toLowerCase() === cohortFilter.toLowerCase();
       const matchesPayment =
         paymentStatusFilter === null || p.payment_status === paymentStatusFilter;
   
@@ -88,14 +96,13 @@ function Page() {
     });
   
     setFilteredParticipants(filtered);
-  };
-  
+  }, [selectedParticipants.length, participants, cohortFilter, paymentStatusFilter]);
 
   useEffect(() => {
     if (!show) {
       handleFilter();
     }
-  }, [cohortFilter, paymentStatusFilter, show]);
+  }, [cohortFilter, paymentStatusFilter, show, handleFilter]);
   
 
   const handleSendFilteredEmails = async () => {
@@ -151,7 +158,7 @@ function Page() {
     setFilteredParticipants(participants);
   }
 
-  const handleAdvancedFilter = () => {
+  const handleAdvancedFilter = useCallback(() => {
     if (selectedParticipants.length > 0) return;
     const filtered = participants.filter((p) => {
       const matchesCohort = filters.cohort === 'all' || p.cohort?.toLowerCase() === filters.cohort.toLowerCase();
@@ -168,14 +175,35 @@ function Page() {
       );
     });
     setFilteredParticipants(filtered);
-  };
+  }, [selectedParticipants.length, participants, filters]);
 
-  const allCourses = Array.from(new Set(participants.map((p) => p.course?.name).filter(Boolean)));
-  const allGenders = Array.from(new Set(participants.map((p) => p.gender).filter(Boolean)));
-  const allCountries = Array.from(new Set(participants.map((p) => p.country).filter(Boolean)));
-  const allCities = Array.from(new Set(participants.map((p) => p.city).filter(Boolean)));
-  const allStates = Array.from(new Set(participants.map((p) => p.state).filter(Boolean)));
-  const allStatuses = Array.from(new Set(participants.map((p) => p.status).filter(Boolean)));
+  // Memoize filter options to avoid recalculating on every render
+  const filterOptions = useMemo(() => {
+    const courses = new Set<string>();
+    const genders = new Set<string>();
+    const countries = new Set<string>();
+    const cities = new Set<string>();
+    const states = new Set<string>();
+    const statuses = new Set<string>();
+
+    participants.forEach((p) => {
+      if (p.course?.name) courses.add(p.course.name);
+      if (p.gender) genders.add(p.gender);
+      if (p.country) countries.add(p.country);
+      if (p.city) cities.add(p.city);
+      if (p.state) states.add(p.state);
+      if (p.status) statuses.add(p.status);
+    });
+
+    return {
+      courses: Array.from(courses).sort(),
+      genders: Array.from(genders).sort(),
+      countries: Array.from(countries).sort(),
+      cities: Array.from(cities).sort(),
+      states: Array.from(states).sort(),
+      statuses: Array.from(statuses).sort(),
+    };
+  }, [participants]);
 
   return (
     <div className="w-full overflow-hidden p-4">
@@ -267,7 +295,7 @@ function Page() {
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Courses" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Courses</SelectItem>
-                    {allCourses.map(course => <SelectItem key={course} value={course}>{course}</SelectItem>)}
+                    {filterOptions.courses.map(course => <SelectItem key={course} value={course}>{course}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -277,7 +305,7 @@ function Page() {
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Genders" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Genders</SelectItem>
-                    {allGenders.map(gender => <SelectItem key={gender} value={gender}>{gender}</SelectItem>)}
+                    {filterOptions.genders.map(gender => <SelectItem key={gender} value={gender}>{gender}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -287,7 +315,7 @@ function Page() {
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Countries" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Countries</SelectItem>
-                    {allCountries.map(country => <SelectItem key={country} value={country}>{country}</SelectItem>)}
+                    {filterOptions.countries.map(country => <SelectItem key={country} value={country}>{country}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -297,7 +325,7 @@ function Page() {
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Cities" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Cities</SelectItem>
-                    {allCities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
+                    {filterOptions.cities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -307,7 +335,7 @@ function Page() {
                   <SelectTrigger className="w-full"><SelectValue placeholder="All States" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All States</SelectItem>
-                    {allStates.map(state => <SelectItem key={state} value={state}>{state}</SelectItem>)}
+                    {filterOptions.states.map(state => <SelectItem key={state} value={state}>{state}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -317,7 +345,7 @@ function Page() {
                   <SelectTrigger className="w-full"><SelectValue placeholder="All Statuses" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    {allStatuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+                    {filterOptions.statuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

@@ -61,10 +61,11 @@ export default function VettingPage() {
     if (storedToken) setToken(storedToken);
   }, []);
 
-  // Fetch participants
+  // Fetch participants - load all pages automatically
   useEffect(() => {
     if (token && !isFetching && !hasLoaded) {
-      fetchParticipants(token);
+      // Load all pages automatically (loadAllPages = true by default)
+      fetchParticipants(token, false, false, true);
     }
   }, [token, hasLoaded, isFetching, fetchParticipants]);
 
@@ -97,8 +98,8 @@ export default function VettingPage() {
 
     if (statusFilter === "pending") {
       filtered = filtered.filter((p) => !p.status || p.status.toLowerCase() === "pending");
-    } else if (statusFilter === "approved") {
-      filtered = filtered.filter((p) => p.status.toLowerCase() === "approved");
+    } else if (statusFilter === "accepted") {
+      filtered = filtered.filter((p) => p.status.toLowerCase() === "accepted");
     } else if (statusFilter === "rejected") {
       filtered = filtered.filter((p) => p.status.toLowerCase() === "rejected");
     }
@@ -182,9 +183,9 @@ export default function VettingPage() {
         throw new Error(result.message || "Failed to approve participant");
       }
 
-      alert(`Participant \"${participant.name}\" has been approved. They will receive an email confirmation.`);
+      alert(`Participant \"${participant.name}\" has been accepted. They will receive an email confirmation.`);
       // Update local store
-      updateParticipant(participant.id, { status: "approved" });
+      updateParticipant(participant.id, { status: "accepted" });
     } catch (error) {
       console.error("Error approving participant:", error);
       alert(error instanceof Error ? error.message : "Failed to approve participant");
@@ -267,7 +268,7 @@ export default function VettingPage() {
   }
 
   const pendingCount = participants.filter((p) => !p.status || p.status.toLowerCase() === "pending").length;
-  const approvedCount = participants.filter((p) => p.status.toLowerCase() === "approved").length;
+  const acceptedCount = participants.filter((p) => p.status.toLowerCase() === "accepted").length;
   const rejectedCount = participants.filter((p) => p.status.toLowerCase() === "rejected").length;
 
   return (
@@ -294,10 +295,10 @@ export default function VettingPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Approved</CardDescription>
+            <CardDescription>Accepted</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{approvedCount}</div>
+            <div className="text-2xl font-bold text-green-600">{acceptedCount}</div>
           </CardContent>
         </Card>
         <Card>
@@ -320,7 +321,7 @@ export default function VettingPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="accepted">Accepted</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
               <SelectItem value="all">All</SelectItem>
             </SelectContent>

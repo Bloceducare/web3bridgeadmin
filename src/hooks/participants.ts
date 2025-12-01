@@ -1,6 +1,164 @@
-import { useCallback, useState } from "react";
-import { ApiResponse, Participant } from "@/hooks/interface";
+import { useCallback, useState, useEffect } from "react";
+import { ApiResponse, Participant, PaginationInfo } from "@/hooks/interface";
 import { useParticipantsStore } from "@/stores/useParticipantsStore";
+
+// Import the store directly for cache checking
+const getStoreState = () => useParticipantsStore.getState();
+
+// Base URL for API
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2";
+
+/**
+ * Simple function to fetch a single page of participants (backward compatible)
+ * @param page - Page number (default: 1)
+ * @param limit - Items per page (default: 50)
+ * @param token - Authentication token
+ * @returns Promise with participants array and pagination info
+ */
+export async function fetchParticipantsPage(
+  page: number = 1,
+  limit: number = 50,
+  token?: string
+): Promise<{ participants: Participant[]; pagination: PaginationInfo }> {
+  const authToken = token || localStorage.getItem("token") || "";
+  
+  if (!authToken) {
+    throw new Error("No authentication token found");
+  }
+
+  const response = await fetch(
+    `${BASE_URL}/cohort/participant/all/?page=${page}&limit=${limit}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch participants: ${response.statusText}`);
+  }
+
+  const result: ApiResponse = await response.json();
+
+  if (!result.success) {
+    throw new Error("Failed to fetch participants");
+  }
+
+  return {
+    participants: result.data.results,
+    pagination: result.data.pagination,
+  };
+}
+
+/**
+ * Hook for paginated participant fetching with navigation controls
+ * Useful for UI that shows participants page by page
+ */
+export const useFetchParticipantsPaginated = (
+  initialPage: number = 1,
+  initialLimit: number = 50,
+  token?: string
+) => {
+  const [data, setData] = useState<Participant[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [limit] = useState(initialLimit);
+
+  const fetchData = useCallback(async (page: number) => {
+    const authToken = token || localStorage.getItem("token") || "";
+    if (!authToken) {
+      setError("No authentication token found");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `${BASE_URL}/cohort/participant/all/?page=${page}&limit=${limit}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch participants: ${response.statusText}`);
+      }
+
+      const result: ApiResponse = await response.json();
+
+      if (!result.success) {
+        throw new Error("Failed to fetch participants");
+      }
+
+      // Sort by registration date (newest first)
+      const sorted = [...result.data.results].sort((a, b) => {
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
+
+      setData(sorted);
+      setPagination(result.data.pagination);
+    } catch (err) {
+      console.error("Error fetching participants:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch participants");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [limit, token]);
+
+  useEffect(() => {
+    fetchData(currentPage);
+  }, [currentPage, fetchData]);
+
+  const nextPage = useCallback(() => {
+    if (pagination?.has_next) {
+      setCurrentPage(prev => prev + 1);
+    }
+  }, [pagination]);
+
+  const previousPage = useCallback(() => {
+    if (pagination?.has_previous) {
+      setCurrentPage(prev => prev - 1);
+    }
+  }, [pagination]);
+
+  const goToPage = useCallback((page: number) => {
+    if (pagination) {
+      // Validate page number
+      const maxPage = Math.ceil((pagination.current_page * pagination.limit) / pagination.limit);
+      if (page >= 1 && page <= maxPage) {
+        setCurrentPage(page);
+      }
+    } else {
+      setCurrentPage(page);
+    }
+  }, [pagination]);
+
+  return {
+    data,
+    pagination,
+    isLoading,
+    error,
+    currentPage,
+    nextPage,
+    previousPage,
+    goToPage,
+    refetch: () => fetchData(currentPage),
+  };
+};
 
 export const useParticipants = () => {
   const { 
@@ -14,9 +172,16 @@ export const useParticipants = () => {
   const [isFetching, setIsFetching] = useState(false);
 
   const fetchParticipants = useCallback(
-    async (token: string, forceRefresh = false, silent = false) => {
+    async (token: string, forceRefresh = false, silent = false, loadAllPages = true) => {
+      // Check cache validity - skip if cache is still valid and not forcing refresh
+      const storeState = getStoreState();
+      if (!forceRefresh && storeState.isCacheValid() && storeHasLoaded) {
+        console.log("Using cached participants data");
+        return;
+      }
+
       // Check if already fetching or has loaded and no force refresh
-      if (isFetching || (storeHasLoaded && !forceRefresh && !silent)) {
+      if (isFetching || (storeHasLoaded && !forceRefresh && !silent && storeState.isCacheValid())) {
         console.log("Skipping fetch: isFetching=", isFetching, "storeHasLoaded=", storeHasLoaded, "forceRefresh=", forceRefresh);
         return;
       }
@@ -34,13 +199,13 @@ export const useParticipants = () => {
           setParticipants([]);
         }
 
-        // First, fetch the first page to get pagination info with a reasonable page size
-        const pageSize = 50; // Limit per page to avoid timeout
-        const firstUrl = `https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/participant/all/?page_size=${pageSize}`;
+        // Fetch the first page with new API structure (page & limit instead of page_size)
+        const limit = 100; // Items per page
+        const firstUrl = `${BASE_URL}/cohort/participant/all/?page=1&limit=${limit}`;
         
-        // Add timeout to initial request with longer timeout for slower server
+        // Add timeout to initial request
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
         
         let firstResponse = await fetch(firstUrl, {
           method: "GET",
@@ -72,131 +237,66 @@ export const useParticipants = () => {
         setParticipants(allParticipants);
         setHasLoaded(true);
 
-        const totalCount = firstResult.data.count;
-        const actualPageSize = firstResult.data.results.length;
-        const totalPages = Math.ceil(totalCount / actualPageSize);
-        
-        // If there are more pages, fetch them
-        if (totalPages > 1) {
-          const baseEndpoint = "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2/cohort/participant/all/";
-          
-          // Helper function to fetch a single page with retry logic (reduced retries)
-          const fetchPageWithRetry = async (page: number, retries = 2): Promise<Participant[]> => {
-            const pageUrl = firstResult.data.next
-              ? firstResult.data.next.replace(/page=\d+/, `page=${page}`).replace(/page_size=\d+/, `page_size=${pageSize}`)
-              : `${baseEndpoint}?page=${page}&page_size=${pageSize}`;
-            
-            for (let attempt = 1; attempt <= retries; attempt++) {
-              try {
-                // Create abort controller for timeout with longer timeout for slower server
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
-                
-                const response = await fetch(pageUrl, {
-                  method: "GET",
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                  },
-                  signal: controller.signal,
-                });
-                
-                clearTimeout(timeoutId);
-
-                if (!response.ok) {
-                  if (response.status === 408 || response.status === 504) {
-                    console.warn(`Timeout fetching page ${page}, attempt ${attempt}/${retries}`);
-                  }
-                  if (attempt === retries) {
-                    console.warn(`Failed to fetch page ${page} after ${retries} attempts: ${response.statusText}`);
-                    return [];
-                  }
-                  // Wait before retry (exponential backoff with longer delays)
-                  const retryDelay = Math.pow(2, attempt) * 2000; // 2s, 4s, 8s
-                  console.log(`Page ${page} failed (attempt ${attempt}/${retries}), retrying in ${retryDelay}ms...`);
-                  await new Promise(resolve => setTimeout(resolve, retryDelay));
-                  continue;
-                }
-
-                const result: ApiResponse = await response.json();
-                if (result.success && result.data && result.data.results) {
-                  return result.data.results;
-                }
-                
-                if (attempt === retries) {
-                  console.warn(`Invalid response for page ${page} after ${retries} attempts`);
-                  return [];
-                }
-                
-                const retryDelay = Math.pow(2, attempt) * 2000;
-                console.log(`Page ${page} error (attempt ${attempt}/${retries}), retrying in ${retryDelay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
-              } catch (error: any) {
-                // Check if it's an abort/timeout error
-                if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-                  console.warn(`Timeout fetching page ${page}, attempt ${attempt}/${retries}`);
-                }
-                
-                if (attempt === retries) {
-                  console.error(`Error fetching page ${page} after ${retries} attempts:`, error);
-                  return [];
-                }
-                // Wait before retry with longer delay
-                const retryDelay = Math.pow(2, attempt) * 2000;
-                console.log(`Page ${page} catch error (attempt ${attempt}/${retries}), retrying in ${retryDelay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
-              }
-            }
-            return [];
-          };
-          
-          // Fetch pages very conservatively to avoid overwhelming the server
-          // Only fetch 2 pages at a time with significant delays
-          const batchSize = 2; // Very conservative: only 2 concurrent requests
-          const delayBetweenBatches = 500; // 500ms delay between batches
+        // Only fetch additional pages if explicitly requested (loadAllPages = true)
+        // This allows progressive loading - users see data immediately
+        if (loadAllPages && firstResult.data.pagination.has_next) {
+          const pagination = firstResult.data.pagination;
+          let currentPage = pagination.next_page;
           const additionalParticipants: Participant[] = [];
           
-          // Process pages in small batches with delays
-          for (let i = 2; i <= totalPages; i += batchSize) {
-            const batchEnd = Math.min(i + batchSize - 1, totalPages);
-            console.log(`Fetching pages ${i} to ${batchEnd} of ${totalPages}...`);
+          // Fetch remaining pages using the pagination info
+          while (currentPage !== null) {
+            const pageUrl = `${BASE_URL}/cohort/participant/all/?page=${currentPage}&limit=${limit}`;
             
-            const batchPromises: Promise<Participant[]>[] = [];
-            for (let page = i; page <= batchEnd; page++) {
-              batchPromises.push(fetchPageWithRetry(page));
-            }
-            
-            // Wait for current batch to complete
-            const batchResults = await Promise.allSettled(batchPromises);
-            
-            // Collect successful results from this batch
-            batchResults.forEach((result, batchIndex) => {
-              if (result.status === 'fulfilled' && result.value.length > 0) {
-                additionalParticipants.push(...result.value);
+            try {
+              const pageController = new AbortController();
+              const pageTimeoutId = setTimeout(() => pageController.abort(), 30000);
+              
+              const pageResponse = await fetch(pageUrl, {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                signal: pageController.signal,
+              });
+              
+              clearTimeout(pageTimeoutId);
+
+              if (!pageResponse.ok) {
+                console.warn(`Failed to fetch page ${currentPage}: ${pageResponse.statusText}`);
+                break; // Stop if we hit an error
+              }
+
+              const pageResult: ApiResponse = await pageResponse.json();
+              if (pageResult.success && pageResult.data && pageResult.data.results) {
+                additionalParticipants.push(...pageResult.data.results);
                 
-                // Combine all participants and sort by registration date (newest first)
-                const allParticipants = [...firstResult.data.results, ...additionalParticipants];
-                const sortedParticipants = allParticipants.sort((a, b) => {
+                // Update state progressively after each page
+                const combined = [...firstResult.data.results, ...additionalParticipants];
+                const sorted = combined.sort((a, b) => {
                   const dateA = new Date(a.created_at || 0).getTime();
                   const dateB = new Date(b.created_at || 0).getTime();
-                  return dateB - dateA; // Descending order (newest first)
+                  return dateB - dateA;
                 });
+                setParticipants(sorted);
                 
-                // Update state progressively after each batch
-                setParticipants(sortedParticipants);
-              } else if (result.status === 'rejected') {
-                console.warn(`Page ${i + batchIndex} failed to fetch:`, result.reason);
+                // Check if there are more pages
+                currentPage = pageResult.data.pagination.next_page;
+              } else {
+                break;
               }
-            });
-            
-            // Longer delay between batches to give server time to recover
-            if (batchEnd < totalPages) {
-              console.log(`Waiting ${delayBetweenBatches}ms before next batch...`);
-              await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+            } catch (error: any) {
+              if (error.name === 'AbortError') {
+                console.warn(`Timeout fetching page ${currentPage}`);
+              } else {
+                console.error(`Error fetching page ${currentPage}:`, error);
+              }
+              break; // Stop on error
             }
           }
           
-          console.log(`Completed fetching ${additionalParticipants.length} additional participants across ${totalPages - 1} pages`);
+          console.log(`Completed fetching ${additionalParticipants.length} additional participants`);
         }
       } catch (error: any) {
         console.error("Error fetching participants:", error);
@@ -255,12 +355,114 @@ export const useParticipants = () => {
     []
   );
 
+  // Streaming endpoint for very large datasets (thousands of records)
+  const streamParticipants = useCallback(
+    async (
+      token: string,
+      registrationId?: number,
+      courseId?: number,
+      chunkSize: number = 100,
+      onProgress?: (progress: { total: number; current: number }) => void
+    ): Promise<Participant[]> => {
+      setIsFetching(true);
+      setLoading(true);
+      setError(null);
+      setParticipants([]);
+
+      try {
+        let queryParams = `chunk_size=${chunkSize}`;
+        if (registrationId) queryParams += `&registration=${registrationId}`;
+        if (courseId) queryParams += `&course=${courseId}`;
+
+        const response = await fetch(
+          `${BASE_URL}/cohort/participant/stream/?${queryParams}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to stream participants");
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        const allParticipants: Participant[] = [];
+
+        if (!reader) {
+          throw new Error("Stream reader not available");
+        }
+
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n').filter(line => line.trim());
+
+          for (const line of lines) {
+            try {
+              const jsonData = JSON.parse(line);
+              
+              if (jsonData.status === 'started') {
+                console.log('Streaming started');
+              } else if (jsonData.chunk) {
+                allParticipants.push(...jsonData.chunk);
+                
+                // Update state progressively
+                setParticipants([...allParticipants]);
+                
+                // Report progress if callback provided
+                if (onProgress) {
+                  onProgress({
+                    total: jsonData.total_sent || allParticipants.length,
+                    current: allParticipants.length
+                  });
+                }
+              } else if (jsonData.status === 'completed') {
+                console.log(`Streaming completed. Total: ${jsonData.total_sent}`);
+              }
+            } catch (e) {
+              console.warn('Failed to parse chunk:', e);
+            }
+          }
+        }
+
+        // Sort by registration date (newest first)
+        const sorted = allParticipants.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+        
+        setParticipants(sorted);
+        setHasLoaded(true);
+        return sorted;
+      } catch (error: any) {
+        console.error("Error streaming participants:", error);
+        setError(error.message || "Failed to stream participants");
+        throw error;
+      } finally {
+        setLoading(false);
+        setIsFetching(false);
+      }
+    },
+    [setParticipants, setLoading, setError, setHasLoaded]
+  );
+
   return {
     fetchParticipants,
     sendConfirmationEmail,
+    streamParticipants,
     isFetching,
     hasLoaded: storeHasLoaded,
-    forceRefresh: () => fetchParticipants(localStorage.getItem("token") || "", true),
-    silentRefresh: () => fetchParticipants(localStorage.getItem("token") || "", false, true),
+    forceRefresh: () => fetchParticipants(localStorage.getItem("token") || "", true, false, true),
+    silentRefresh: () => fetchParticipants(localStorage.getItem("token") || "", false, true, true),
+    loadAllPages: () => fetchParticipants(localStorage.getItem("token") || "", false, true, true),
   };
 };
