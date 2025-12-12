@@ -936,6 +936,16 @@ export default function HubManagementPage() {
                 Rejected ({allRegistrations.filter(r => r.status === "rejected").length})
               </Button>
               <Button
+                variant={registrationStatusFilter === "checked_out" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setRegistrationStatusFilter("checked_out");
+                  setCurrentPage(1);
+                }}
+              >
+                Checked Out ({allRegistrations.filter(r => r.status === "checked_out").length})
+              </Button>
+              <Button
                 variant={registrationStatusFilter === "all" ? "default" : "outline"}
                 size="sm"
                 onClick={() => {
@@ -994,10 +1004,12 @@ export default function HubManagementPage() {
                                   ? "default" 
                                   : reg.status === "rejected"
                                   ? "destructive"
+                                  : reg.status === "checked_out"
+                                  ? "outline"
                                   : "secondary"
                               }
                             >
-                              {reg.status || "pending"}
+                              {reg.status === "checked_out" ? "Checked Out" : reg.status || "pending"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
@@ -1301,11 +1313,13 @@ export default function HubManagementPage() {
                         ? "default" 
                         : selectedRegistration.status === "rejected"
                         ? "destructive"
+                        : selectedRegistration.status === "checked_out"
+                        ? "outline"
                         : "secondary"
                     }
                     className="text-lg px-4 py-2"
                   >
-                    {selectedRegistration.status || "pending"}
+                    {selectedRegistration.status === "checked_out" ? "Checked Out" : selectedRegistration.status || "pending"}
                   </Badge>
                 </div>
 
