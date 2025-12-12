@@ -77,3 +77,49 @@ export interface Program {
     images: Image[]; 
     status: boolean;
   }
+
+// Hub Management Interfaces
+export interface HubRegistration {
+  id: number;
+  name: string;
+  email: string;
+  phone_number: string;
+  location: string;
+  reason: string;
+  role: string;
+  contribution: string;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HubCheckIn {
+  id: number;
+  registration: number;
+  space?: number | null;
+  purpose?: string | null;
+  notes?: string | null;
+  check_in_time?: string;
+  check_out_time?: string | null;
+  is_active?: boolean;
+  registration_details?: HubRegistration;
+  space_details?: HubSpace;
+}
+
+export interface HubSpace {
+  id: number;
+  name: string;
+  description?: string;
+  capacity?: number;
+  is_available?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HubStats {
+  total_registrations?: number;
+  active_check_ins?: number;
+  total_check_ins?: number;
+  total_spaces?: number;
+  available_spaces?: number;
+}
