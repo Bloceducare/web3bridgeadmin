@@ -34,16 +34,21 @@ import {
 import { MdAdd, MdEdit, MdDelete, MdCheckCircle, MdCancel, MdRefresh, MdVisibility } from "react-icons/md";
 import { FadeLoader, ClipLoader } from "react-spinners";
 import TablePagination from "@/app/Web3Lagos/Participants/pagination";
+import { useToast } from "@/hooks/use-toast";
+import { Toaster } from "@/Components/ui/toaster";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2";
 
 export default function HubManagementPage() {
+  const { toast } = useToast();
   const [token, setToken] = useState("");
   const [activeTab, setActiveTab] = useState("registrations");
-  const [loading, setLoading] = useState({ registrations: false, checkins: false, spaces: false, stats: false });
+  const [loading, setLoading] = useState({ registrations: false, checkins: false, spaces: false, stats: false, checkInSubmit: false });
   
   // Registrations state
   const [registrations, setRegistrations] = useState<HubRegistration[]>([]);
+  const [allRegistrations, setAllRegistrations] = useState<HubRegistration[]>([]); // Store all for counts
+  const [registrationStatusFilter, setRegistrationStatusFilter] = useState<string>("pending"); // Default to pending
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [isRegistrationViewModalOpen, setIsRegistrationViewModalOpen] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState<HubRegistration | null>(null);
@@ -86,22 +91,44 @@ export default function HubManagementPage() {
   // Stats state
   const [stats, setStats] = useState<HubStats>({});
 
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({
+    open: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
+
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     if (storedToken) setToken(storedToken);
   }, []);
 
-  // Fetch registrations
-  const fetchRegistrations = async () => {
+  // Fetch registrations by status
+  const fetchRegistrations = async (status?: string) => {
     if (!token) return;
     setLoading(prev => ({ ...prev, registrations: true }));
     try {
-      const response = await fetch(`${BASE_URL}/hub/registration/all/`, {
+      const statusToFetch = status || registrationStatusFilter;
+      let url = `${BASE_URL}/hub/registration/all/`;
+      
+      // If status is specified and not "all", use the by_status endpoint
+      if (statusToFetch && statusToFetch !== "all") {
+        url = `${BASE_URL}/hub/registration/by_status/?status=${statusToFetch}`;
+      }
+      
+      const response = await fetch(url, {
         headers: { Authorization: `${token}` },
       });
       if (response.ok) {
         const data = await response.json();
-        setRegistrations(data.data || data);
+        const fetchedRegistrations = data.data || data;
+        setRegistrations(fetchedRegistrations);
       }
     } catch (error) {
       console.error("Error fetching registrations:", error);
@@ -115,21 +142,19 @@ export default function HubManagementPage() {
     if (!token) return;
     setLoading(prev => ({ ...prev, checkins: true }));
     try {
-      const [allResponse, activeResponse] = await Promise.all([
-        fetch(`${BASE_URL}/hub/checkin/all/`, {
-          headers: { Authorization: `${token}` },
-        }),
-        fetch(`${BASE_URL}/hub/checkin/active/`, {
-          headers: { Authorization: `${token}` },
-        }),
-      ]);
-      if (allResponse.ok) {
-        const allData = await allResponse.json();
-        setCheckIns(allData.data || allData);
-      }
-      if (activeResponse.ok) {
-        const activeData = await activeResponse.json();
-        setActiveCheckIns(activeData.data || activeData);
+      const response = await fetch(`${BASE_URL}/hub/checkin/all/`, {
+        headers: { Authorization: `${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const allCheckIns = data.data || data;
+        setCheckIns(allCheckIns);
+        // Filter active check-ins based on status field
+        const active = allCheckIns.filter((checkIn: HubCheckIn) => 
+          checkIn.status === "checked_in"
+        );
+        setActiveCheckIns(active);
       }
     } catch (error) {
       console.error("Error fetching check-ins:", error);
@@ -175,18 +200,38 @@ export default function HubManagementPage() {
       ]);
 
       const statsData: HubStats = {};
+      
+      // Registration stats: { total, pending, approved, rejected }
       if (regStats.ok) {
         const regData = await regStats.json();
-        Object.assign(statsData, regData.data || regData);
+        const regStatsData = regData.data || regData;
+        statsData.total_registrations = regStatsData.total;
+        statsData.pending_registrations = regStatsData.pending;
+        statsData.approved_registrations = regStatsData.approved;
+        statsData.rejected_registrations = regStatsData.rejected;
       }
+      
+      // Check-in stats: { total, checked_in, checked_out, today_checkins }
       if (checkinStats.ok) {
         const checkinData = await checkinStats.json();
-        Object.assign(statsData, checkinData.data || checkinData);
+        const checkinStatsData = checkinData.data || checkinData;
+        statsData.total_check_ins = checkinStatsData.total;
+        statsData.active_check_ins = checkinStatsData.checked_in;
+        statsData.checked_out = checkinStatsData.checked_out;
+        statsData.today_checkins = checkinStatsData.today_checkins;
       }
+      
+      // Space stats: { total_spaces, total_capacity, total_occupancy, total_available, occupancy_percentage }
       if (spaceStats.ok) {
         const spaceData = await spaceStats.json();
-        Object.assign(statsData, spaceData.data || spaceData);
+        const spaceStatsData = spaceData.data || spaceData;
+        statsData.total_spaces = spaceStatsData.total_spaces;
+        statsData.total_capacity = spaceStatsData.total_capacity;
+        statsData.total_occupancy = spaceStatsData.total_occupancy;
+        statsData.total_available = spaceStatsData.total_available;
+        statsData.occupancy_percentage = spaceStatsData.occupancy_percentage;
       }
+      
       setStats(statsData);
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -195,17 +240,43 @@ export default function HubManagementPage() {
     }
   };
 
+  // Fetch all registrations for counts
+  const fetchAllRegistrationsForCounts = async () => {
+    if (!token) return;
+    try {
+      const response = await fetch(`${BASE_URL}/hub/registration/all/`, {
+        headers: { Authorization: `${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAllRegistrations(data.data || data);
+      }
+    } catch (error) {
+      console.error("Error fetching all registrations:", error);
+    }
+  };
+
   useEffect(() => {
     if (token) {
       fetchStats();
       if (activeTab === "registrations") {
-        fetchRegistrations();
+        // Fetch all for counts, then fetch filtered
+        fetchAllRegistrationsForCounts();
+        fetchRegistrations(registrationStatusFilter);
         setCurrentPage(1); // Reset pagination when switching to registrations tab
       }
       if (activeTab === "checkins") fetchCheckIns();
       if (activeTab === "spaces") fetchSpaces();
     }
   }, [token, activeTab]);
+
+  // Fetch when status filter changes
+  useEffect(() => {
+    if (token && activeTab === "registrations") {
+      fetchRegistrations(registrationStatusFilter);
+      setCurrentPage(1);
+    }
+  }, [registrationStatusFilter]);
 
   // Registration handlers
   const handleCreateRegistration = async () => {
@@ -214,13 +285,14 @@ export default function HubManagementPage() {
       const response = await fetch(`${BASE_URL}/hub/registration/`, {
         method: "POST",
         headers: {
-          Authorization: ` ${token}`,
+          Authorization: `${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(registrationForm),
       });
       if (response.ok) {
-        await fetchRegistrations();
+        await fetchAllRegistrationsForCounts();
+        await fetchRegistrations(registrationStatusFilter);
         await fetchStats();
         setIsRegistrationModalOpen(false);
         setRegistrationForm({
@@ -232,14 +304,25 @@ export default function HubManagementPage() {
           role: "",
           contribution: "",
         });
-        alert("Registration created successfully!");
+        toast({
+          title: "Success",
+          description: "Registration created successfully!",
+        });
       } else {
         const error = await response.json();
-        alert(`Error: ${error.message || "Failed to create registration"}`);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create registration",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error creating registration:", error);
-      alert("Failed to create registration");
+      toast({
+        title: "Error",
+        description: "Failed to create registration",
+        variant: "destructive",
+      });
     }
   };
 
@@ -249,114 +332,184 @@ export default function HubManagementPage() {
       const response = await fetch(`${BASE_URL}/hub/registration/${selectedRegistration.id}/`, {
         method: "PUT",
         headers: {
-          Authorization: ` ${token}`,
+          Authorization: `${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(registrationForm),
       });
       if (response.ok) {
-        await fetchRegistrations();
+        await fetchAllRegistrationsForCounts();
+        await fetchRegistrations(registrationStatusFilter);
         setIsRegistrationModalOpen(false);
         setSelectedRegistration(null);
-        alert("Registration updated successfully!");
+        toast({
+          title: "Success",
+          description: "Registration updated successfully!",
+        });
       } else {
         const error = await response.json();
-        alert(`Error: ${error.message || "Failed to update registration"}`);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to update registration",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error updating registration:", error);
-      alert("Failed to update registration");
+      toast({
+        title: "Error",
+        description: "Failed to update registration",
+        variant: "destructive",
+      });
     }
   };
 
   const handleApproveRegistration = async (id: number) => {
-    if (!token || !confirm("Approve this registration?")) return;
-    try {
-      const response = await fetch(`${BASE_URL}/hub/registration/${id}/approve/`, {
-        method: "POST",
-        headers: { Authorization: `${token}` },
-      });
-      if (response.ok) {
-        await fetchRegistrations();
-        await fetchStats();
-        alert("Registration approved successfully!");
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.message || "Failed to approve registration"}`);
-      }
-    } catch (error) {
-      console.error("Error approving registration:", error);
-      alert("Failed to approve registration");
-    }
+    if (!token) return;
+    setConfirmDialog({
+      open: true,
+      title: "Approve Registration",
+      description: "Are you sure you want to approve this registration?",
+      onConfirm: async () => {
+        setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} });
+        try {
+          const response = await fetch(`${BASE_URL}/hub/registration/${id}/approve/`, {
+            method: "POST",
+            headers: { Authorization: `${token}` },
+          });
+          if (response.ok) {
+            await fetchAllRegistrationsForCounts();
+            await fetchRegistrations(registrationStatusFilter);
+            await fetchStats();
+            toast({
+              title: "Success",
+              description: "Registration approved successfully!",
+            });
+          } else {
+            const error = await response.json();
+            toast({
+              title: "Error",
+              description: error.message || "Failed to approve registration",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error approving registration:", error);
+          toast({
+            title: "Error",
+            description: "Failed to approve registration",
+            variant: "destructive",
+          });
+        }
+      },
+    });
   };
 
   const handleRejectRegistration = async (id: number) => {
-    if (!token || !confirm("Reject this registration?")) return;
-    const registration = registrations.find(r => r.id === id);
-    if (!registration) return;
-    
-    try {
-      const response = await fetch(`${BASE_URL}/hub/registration/${id}/reject/`, {
-        method: "POST",
-        headers: {
-          Authorization: ` ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: registration.name,
-          email: registration.email,
-          phone_number: registration.phone_number,
-          location: registration.location,
-          reason: registration.reason,
-          role: registration.role,
-          contribution: registration.contribution,
-        }),
-      });
-      if (response.ok) {
-        await fetchRegistrations();
-        await fetchStats();
-        alert("Registration rejected successfully!");
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.message || "Failed to reject registration"}`);
-      }
-    } catch (error) {
-      console.error("Error rejecting registration:", error);
-      alert("Failed to reject registration");
-    }
+    if (!token) return;
+    setConfirmDialog({
+      open: true,
+      title: "Reject Registration",
+      description: "Are you sure you want to reject this registration?",
+      onConfirm: async () => {
+        setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} });
+        const registration = registrations.find(r => r.id === id);
+        if (!registration) return;
+        
+        try {
+          const response = await fetch(`${BASE_URL}/hub/registration/${id}/reject/`, {
+            method: "POST",
+            headers: {
+              Authorization: `${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: registration.name,
+              email: registration.email,
+              phone_number: registration.phone_number,
+              location: registration.location,
+              reason: registration.reason,
+              role: registration.role,
+              contribution: registration.contribution,
+            }),
+          });
+          if (response.ok) {
+            await fetchAllRegistrationsForCounts();
+            await fetchRegistrations(registrationStatusFilter);
+            await fetchStats();
+            toast({
+              title: "Success",
+              description: "Registration rejected successfully!",
+            });
+          } else {
+            const error = await response.json();
+            toast({
+              title: "Error",
+              description: error.message || "Failed to reject registration",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error rejecting registration:", error);
+          toast({
+            title: "Error",
+            description: "Failed to reject registration",
+            variant: "destructive",
+          });
+        }
+      },
+    });
   };
 
   const handleDeleteRegistration = async (id: number) => {
-    if (!token || !confirm("Are you sure you want to delete this registration?")) return;
-    try {
-      const response = await fetch(`${BASE_URL}/hub/registration/${id}/`, {
-        method: "DELETE",
-        headers: { Authorization: `${token}` },
-      });
-      if (response.ok) {
-        await fetchRegistrations();
-        await fetchStats();
-        alert("Registration deleted successfully!");
-      }
-    } catch (error) {
-      console.error("Error deleting registration:", error);
-      alert("Failed to delete registration");
-    }
+    if (!token) return;
+    setConfirmDialog({
+      open: true,
+      title: "Delete Registration",
+      description: "Are you sure you want to delete this registration? This action cannot be undone.",
+      onConfirm: async () => {
+        setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} });
+        try {
+          const response = await fetch(`${BASE_URL}/hub/registration/${id}/`, {
+            method: "DELETE",
+            headers: { Authorization: `${token}` },
+          });
+          if (response.ok) {
+            await fetchAllRegistrationsForCounts();
+            await fetchRegistrations(registrationStatusFilter);
+            await fetchStats();
+            toast({
+              title: "Success",
+              description: "Registration deleted successfully!",
+            });
+          }
+        } catch (error) {
+          console.error("Error deleting registration:", error);
+          toast({
+            title: "Error",
+            description: "Failed to delete registration",
+            variant: "destructive",
+          });
+        }
+      },
+    });
   };
 
   // Check-in handlers
   const handleCheckIn = async () => {
     if (!token) return;
+    setLoading(prev => ({ ...prev, checkInSubmit: true }));
     try {
       const response = await fetch(`${BASE_URL}/hub/checkin/`, {
         method: "POST",
         headers: {
-          Authorization: ` ${token}`,
+          Authorization: `${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           registration: parseInt(checkInForm.registration),
-          space: checkInForm.space ? parseInt(checkInForm.space) : null,
+          // Space is optional - backend will auto-assign if not provided
+          ...(checkInForm.space && checkInForm.space !== "none" ? { space: parseInt(checkInForm.space) } : {}),
           purpose: checkInForm.purpose || null,
           notes: checkInForm.notes || null,
         }),
@@ -365,74 +518,132 @@ export default function HubManagementPage() {
         await fetchCheckIns();
         await fetchStats();
         setIsCheckInModalOpen(false);
-        setCheckInForm({ registration: "", space: "", purpose: "", notes: "" });
-        alert("Check-in successful!");
+        setCheckInForm({ registration: "", space: "none", purpose: "", notes: "" });
+        toast({
+          title: "Success",
+          description: "Check-in successful!",
+        });
       } else {
         const error = await response.json();
-        alert(`Error: ${error.message || "Failed to check in"}`);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to check in",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error checking in:", error);
-      alert("Failed to check in");
+      toast({
+        title: "Error",
+        description: "Failed to check in",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, checkInSubmit: false }));
     }
   };
 
   const handleCheckOut = async (checkInId: number) => {
-    if (!token || !confirm("Check out this visitor?")) return;
-    try {
-      const response = await fetch(`${BASE_URL}/hub/checkin/${checkInId}/check_out/`, {
-        method: "POST",
-        headers: { Authorization: `${token}` },
-      });
-      if (response.ok) {
-        await fetchCheckIns();
-        await fetchStats();
-        alert("Check-out successful!");
-      }
-    } catch (error) {
-      console.error("Error checking out:", error);
-      alert("Failed to check out");
-    }
+    if (!token) return;
+    setConfirmDialog({
+      open: true,
+      title: "Check Out Visitor",
+      description: "Are you sure you want to check out this visitor?",
+      onConfirm: async () => {
+        setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} });
+        try {
+          const response = await fetch(`${BASE_URL}/hub/checkin/${checkInId}/check_out/`, {
+            method: "POST",
+            headers: { Authorization: `${token}` },
+          });
+          if (response.ok) {
+            await fetchCheckIns();
+            await fetchStats();
+            toast({
+              title: "Success",
+              description: "Check-out successful!",
+            });
+          }
+        } catch (error) {
+          console.error("Error checking out:", error);
+          toast({
+            title: "Error",
+            description: "Failed to check out",
+            variant: "destructive",
+          });
+        }
+      },
+    });
   };
 
   const handleCheckOutByRegistration = async (registrationId: number) => {
-    if (!token || !confirm("Check out this visitor?")) return;
-    try {
-      const response = await fetch(`${BASE_URL}/hub/checkin/check_out_by_registration/`, {
-        method: "POST",
-        headers: {
-          Authorization: ` ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ registration: registrationId }),
-      });
-      if (response.ok) {
-        await fetchCheckIns();
-        await fetchStats();
-        alert("Check-out successful!");
-      }
-    } catch (error) {
-      console.error("Error checking out:", error);
-      alert("Failed to check out");
-    }
+    if (!token) return;
+    setConfirmDialog({
+      open: true,
+      title: "Check Out Visitor",
+      description: "Are you sure you want to check out this visitor?",
+      onConfirm: async () => {
+        setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} });
+        try {
+          const response = await fetch(`${BASE_URL}/hub/checkin/check_out_by_registration/`, {
+            method: "POST",
+            headers: {
+              Authorization: `${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ registration: registrationId }),
+          });
+          if (response.ok) {
+            await fetchCheckIns();
+            await fetchStats();
+            toast({
+              title: "Success",
+              description: "Check-out successful!",
+            });
+          }
+        } catch (error) {
+          console.error("Error checking out:", error);
+          toast({
+            title: "Error",
+            description: "Failed to check out",
+            variant: "destructive",
+          });
+        }
+      },
+    });
   };
 
   const handleDeleteCheckIn = async (id: number) => {
-    if (!token || !confirm("Are you sure you want to delete this check-in?")) return;
-    try {
-      const response = await fetch(`${BASE_URL}/hub/checkin/${id}/`, {
-        method: "DELETE",
-        headers: { Authorization: `${token}` },
-      });
-      if (response.ok) {
-        await fetchCheckIns();
-        await fetchStats();
-        alert("Check-in deleted successfully!");
-      }
-    } catch (error) {
-      console.error("Error deleting check-in:", error);
-      alert("Failed to delete check-in");
-    }
+    if (!token) return;
+    setConfirmDialog({
+      open: true,
+      title: "Delete Check-in",
+      description: "Are you sure you want to delete this check-in? This action cannot be undone.",
+      onConfirm: async () => {
+        setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} });
+        try {
+          const response = await fetch(`${BASE_URL}/hub/checkin/${id}/`, {
+            method: "DELETE",
+            headers: { Authorization: `${token}` },
+          });
+          if (response.ok) {
+            await fetchCheckIns();
+            await fetchStats();
+            toast({
+              title: "Success",
+              description: "Check-in deleted successfully!",
+            });
+          }
+        } catch (error) {
+          console.error("Error deleting check-in:", error);
+          toast({
+            title: "Error",
+            description: "Failed to delete check-in",
+            variant: "destructive",
+          });
+        }
+      },
+    });
   };
 
   // Space handlers
@@ -442,7 +653,7 @@ export default function HubManagementPage() {
       const response = await fetch(`${BASE_URL}/hub/space/`, {
         method: "POST",
         headers: {
-          Authorization: ` ${token}`,
+          Authorization: `${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -463,14 +674,25 @@ export default function HubManagementPage() {
           capacity: "",
           is_available: true,
         });
-        alert("Space created successfully!");
+        toast({
+          title: "Success",
+          description: "Space created successfully!",
+        });
       } else {
         const error = await response.json();
-        alert(`Error: ${error.message || "Failed to create space"}`);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create space",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error creating space:", error);
-      alert("Failed to create space");
+      toast({
+        title: "Error",
+        description: "Failed to create space",
+        variant: "destructive",
+      });
     }
   };
 
@@ -480,7 +702,7 @@ export default function HubManagementPage() {
       const response = await fetch(`${BASE_URL}/hub/space/${selectedSpace.id}/`, {
         method: "PUT",
         headers: {
-          Authorization: ` ${token}`,
+          Authorization: `${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -501,33 +723,59 @@ export default function HubManagementPage() {
           capacity: "",
           is_available: true,
         });
-        alert("Space updated successfully!");
+        toast({
+          title: "Success",
+          description: "Space updated successfully!",
+        });
       } else {
         const error = await response.json();
-        alert(`Error: ${error.message || "Failed to update space"}`);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to update space",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error updating space:", error);
-      alert("Failed to update space");
+      toast({
+        title: "Error",
+        description: "Failed to update space",
+        variant: "destructive",
+      });
     }
   };
 
   const handleDeleteSpace = async (id: number) => {
-    if (!token || !confirm("Are you sure you want to delete this space?")) return;
-    try {
-      const response = await fetch(`${BASE_URL}/hub/space/${id}/`, {
-        method: "DELETE",
-        headers: { Authorization: `${token}` },
-      });
-      if (response.ok) {
-        await fetchSpaces();
-        await fetchStats();
-        alert("Space deleted successfully!");
-      }
-    } catch (error) {
-      console.error("Error deleting space:", error);
-      alert("Failed to delete space");
-    }
+    if (!token) return;
+    setConfirmDialog({
+      open: true,
+      title: "Delete Space",
+      description: "Are you sure you want to delete this space? This action cannot be undone.",
+      onConfirm: async () => {
+        setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} });
+        try {
+          const response = await fetch(`${BASE_URL}/hub/space/${id}/`, {
+            method: "DELETE",
+            headers: { Authorization: `${token}` },
+          });
+          if (response.ok) {
+            await fetchSpaces();
+            await fetchStats();
+            toast({
+              title: "Success",
+              description: "Space deleted successfully!",
+            });
+          }
+        } catch (error) {
+          console.error("Error deleting space:", error);
+          toast({
+            title: "Error",
+            description: "Failed to delete space",
+            variant: "destructive",
+          });
+        }
+      },
+    });
   };
 
   const openRegistrationModal = (registration?: HubRegistration) => {
@@ -584,7 +832,9 @@ export default function HubManagementPage() {
   };
 
   return (
-    <main className="p-6 w-full space-y-6 bg-gray-50 min-h-screen">
+    <>
+      <Toaster />
+      <main className="p-6 w-full space-y-6 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Ethereum Hub Management</h1>
@@ -627,7 +877,7 @@ export default function HubManagementPage() {
             <CardDescription>Available Spaces</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.available_spaces || spaces.filter(s => s.is_available).length}</div>
+            <div className="text-2xl font-bold text-blue-600">{stats.total_available || spaces.filter(s => s.is_available).length}</div>
           </CardContent>
         </Card>
       </div>
@@ -647,6 +897,55 @@ export default function HubManagementPage() {
               <MdAdd size={20} />
               New Registration
             </Button>
+          </div>
+
+          {/* Status Filter Tabs */}
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm font-medium text-gray-700">Filter by Status:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={registrationStatusFilter === "pending" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setRegistrationStatusFilter("pending");
+                  setCurrentPage(1);
+                }}
+              >
+                Pending ({allRegistrations.filter(r => r.status === "pending" || !r.status).length})
+              </Button>
+              <Button
+                variant={registrationStatusFilter === "approved" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setRegistrationStatusFilter("approved");
+                  setCurrentPage(1);
+                }}
+              >
+                Approved ({allRegistrations.filter(r => r.status === "approved").length})
+              </Button>
+              <Button
+                variant={registrationStatusFilter === "rejected" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setRegistrationStatusFilter("rejected");
+                  setCurrentPage(1);
+                }}
+              >
+                Rejected ({allRegistrations.filter(r => r.status === "rejected").length})
+              </Button>
+              <Button
+                variant={registrationStatusFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setRegistrationStatusFilter("all");
+                  setCurrentPage(1);
+                }}
+              >
+                All ({allRegistrations.length})
+              </Button>
+            </div>
           </div>
 
           {loading.registrations ? (
@@ -702,14 +1001,36 @@ export default function HubManagementPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openRegistrationViewModal(reg)}
-                              title="View Details"
-                            >
-                              <MdVisibility size={16} />
-                            </Button>
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openRegistrationViewModal(reg)}
+                                title="View Details"
+                              >
+                                <MdVisibility size={16} />
+                              </Button>
+                              {/* Show check-in button for approved registrations */}
+                              {registrationStatusFilter === "approved" && reg.status === "approved" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setCheckInForm({
+                                      registration: reg.id.toString(),
+                                      space: "",
+                                      purpose: "",
+                                      notes: "",
+                                    });
+                                    setIsCheckInModalOpen(true);
+                                  }}
+                                  title="Check In"
+                                  className="text-green-600 border-green-600 hover:bg-green-50"
+                                >
+                                  Check In
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                           ));
@@ -788,10 +1109,10 @@ export default function HubManagementPage() {
                       >
                         <div>
                           <p className="font-medium">
-                            {checkIn.registration_details?.name || `Registration #${checkIn.registration}`}
+                            {checkIn.registration_name || checkIn.registration_details?.name || `Registration #${checkIn.registration}`}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {checkIn.space_details?.name || "No space assigned"}
+                            {checkIn.space_name || checkIn.space_details?.name || "No space assigned"}
                           </p>
                         </div>
                         <Button
@@ -843,20 +1164,20 @@ export default function HubManagementPage() {
                             checkIns.slice(0, 10).map((checkIn) => (
                               <TableRow key={checkIn.id}>
                                 <TableCell>
-                                  {checkIn.registration_details?.name || `Registration #${checkIn.registration}`}
+                                  {checkIn.registration_name || checkIn.registration_details?.name || `Registration #${checkIn.registration}`}
                                 </TableCell>
                                 <TableCell>
-                                  {checkIn.space_details?.name || "N/A"}
+                                  {checkIn.space_name || checkIn.space_details?.name || "N/A"}
                                 </TableCell>
                                 <TableCell>{checkIn.purpose || "N/A"}</TableCell>
                                 <TableCell>
-                                  <Badge variant={checkIn.is_active ? "default" : "secondary"}>
-                                    {checkIn.is_active ? "Active" : "Checked Out"}
+                                  <Badge variant={checkIn.status === "checked_in" ? "default" : "secondary"}>
+                                    {checkIn.status === "checked_in" ? "Active" : "Checked Out"}
                                   </Badge>
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex gap-2">
-                                    {checkIn.is_active && (
+                                    {checkIn.status === "checked_in" && (
                                       <Button
                                         size="sm"
                                         variant="outline"
@@ -1071,6 +1392,25 @@ export default function HubManagementPage() {
                       Reject
                     </Button>
                   )}
+                  {/* Check-in button for approved registrations */}
+                  {selectedRegistration.status === "approved" && (
+                    <Button
+                      onClick={() => {
+                        setCheckInForm({
+                          registration: selectedRegistration.id.toString(),
+                          space: "",
+                          purpose: "",
+                          notes: "",
+                        });
+                        setIsRegistrationViewModalOpen(false);
+                        setIsCheckInModalOpen(true);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <MdAdd size={18} />
+                      Check In
+                    </Button>
+                  )}
                   <Button
                     onClick={() => {
                       setIsRegistrationViewModalOpen(false);
@@ -1217,11 +1557,14 @@ export default function HubManagementPage() {
         open={isCheckInModalOpen} 
         onOpenChange={(open) => {
           setIsCheckInModalOpen(open);
-          if (open && registrations.length === 0) {
-            fetchRegistrations();
-          }
-          if (open && spaces.length === 0) {
-            fetchSpaces();
+          if (open) {
+            // Fetch all registrations (especially approved ones) for check-in
+            if (registrations.length === 0 || allRegistrations.length === 0) {
+              fetchRegistrations("all");
+            }
+            if (spaces.length === 0) {
+              fetchSpaces();
+            }
           }
         }}
       >
@@ -1243,16 +1586,18 @@ export default function HubManagementPage() {
                   <SelectValue placeholder="Select registration" />
                 </SelectTrigger>
                 <SelectContent>
-                  {registrations.map((reg) => (
-                    <SelectItem key={reg.id} value={reg.id.toString()}>
-                      {reg.name} ({reg.email})
-                    </SelectItem>
-                  ))}
+                  {(allRegistrations.length > 0 ? allRegistrations : registrations)
+                    .filter((reg) => reg.status === "approved")
+                    .map((reg) => (
+                      <SelectItem key={reg.id} value={reg.id.toString()}>
+                        {reg.name} ({reg.email})
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Space (Optional)</Label>
+              <Label>Space (Optional - Auto-assigned if not selected)</Label>
               <Select
                 value={checkInForm.space}
                 onValueChange={(value) =>
@@ -1260,17 +1605,22 @@ export default function HubManagementPage() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select space (optional)" />
+                  <SelectValue placeholder="Select space (optional - will auto-assign if not selected)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No space assigned</SelectItem>
-                  {spaces.map((space) => (
-                    <SelectItem key={space.id} value={space.id.toString()}>
-                      {space.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="none">Auto-assign (recommended)</SelectItem>
+                  {spaces
+                    .filter((space) => space.is_available)
+                    .map((space) => (
+                      <SelectItem key={space.id} value={space.id.toString()}>
+                        {space.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-gray-500 mt-1">
+                If no space is selected, the system will automatically assign to the space with the most available capacity.
+              </p>
             </div>
             <div>
               <Label>Purpose (Optional)</Label>
@@ -1295,10 +1645,26 @@ export default function HubManagementPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={() => setIsCheckInModalOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCheckInModalOpen(false)}
+              disabled={loading.checkInSubmit}
+            >
               Cancel
             </Button>
-            <Button onClick={handleCheckIn}>Check In</Button>
+            <Button 
+              onClick={handleCheckIn}
+              disabled={loading.checkInSubmit || !checkInForm.registration}
+            >
+              {loading.checkInSubmit ? (
+                <>
+                  <ClipLoader size={16} color="#fff" className="mr-2" />
+                  Checking In...
+                </>
+              ) : (
+                "Check In"
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1396,7 +1762,29 @@ export default function HubManagementPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{confirmDialog.title}</DialogTitle>
+            <DialogDescription>{confirmDialog.description}</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} })}
+            >
+              Cancel
+            </Button>
+            <Button onClick={confirmDialog.onConfirm}>
+              Confirm
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
+    </>
   );
 }
 

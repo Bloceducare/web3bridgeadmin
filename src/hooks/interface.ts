@@ -96,11 +96,17 @@ export interface HubRegistration {
 export interface HubCheckIn {
   id: number;
   registration: number;
+  registration_name?: string;
+  registration_email?: string;
   space?: number | null;
+  space_name?: string;
   purpose?: string | null;
   notes?: string | null;
   check_in_time?: string;
   check_out_time?: string | null;
+  status?: string; // "checked_in" or "checked_out"
+  created_at?: string;
+  // Legacy fields for backward compatibility
   is_active?: boolean;
   registration_details?: HubRegistration;
   space_details?: HubSpace;
@@ -117,9 +123,22 @@ export interface HubSpace {
 }
 
 export interface HubStats {
+  // Registration stats
   total_registrations?: number;
+  pending_registrations?: number;
+  approved_registrations?: number;
+  rejected_registrations?: number;
+  // Check-in stats
   active_check_ins?: number;
   total_check_ins?: number;
+  checked_out?: number;
+  today_checkins?: number;
+  // Space stats
   total_spaces?: number;
+  total_capacity?: number;
+  total_occupancy?: number;
+  total_available?: number;
+  occupancy_percentage?: number;
+  // Legacy/fallback
   available_spaces?: number;
 }
