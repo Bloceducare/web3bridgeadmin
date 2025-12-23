@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { HubRegistration, HubCheckIn, HubSpace, HubStats } from "@/hooks/interface";
+import { HubRegistration, HubCheckIn, HubSpace, HubStats, BlockedDateRange } from "@/hooks/interface";
 import {
   Table,
   TableHeader,
@@ -43,7 +43,7 @@ export default function HubManagementPage() {
   const { toast } = useToast();
   const [token, setToken] = useState("");
   const [activeTab, setActiveTab] = useState("registrations");
-  const [loading, setLoading] = useState({ registrations: false, checkins: false, spaces: false, stats: false, checkInSubmit: false });
+  const [loading, setLoading] = useState({ registrations: false, checkins: false, spaces: false, stats: false, checkInSubmit: false, blockedDates: false });
   
   // Registrations state
   const [registrations, setRegistrations] = useState<HubRegistration[]>([]);
@@ -90,6 +90,18 @@ export default function HubManagementPage() {
 
   // Stats state
   const [stats, setStats] = useState<HubStats>({});
+
+  // Blocked dates state
+  const [blockedDates, setBlockedDates] = useState<BlockedDateRange[]>([]);
+  const [selectedBlockedDate, setSelectedBlockedDate] = useState<BlockedDateRange | null>(null);
+  const [isBlockedDateModalOpen, setIsBlockedDateModalOpen] = useState(false);
+  const [blockedDateForm, setBlockedDateForm] = useState({
+    start_date: "",
+    end_date: "",
+    reason: "",
+    is_active: true,
+  });
+  const [blockedDateFormErrors, setBlockedDateFormErrors] = useState<Record<string, string>>({});
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -182,6 +194,30 @@ export default function HubManagementPage() {
     }
   };
 
+  // Fetch blocked dates
+  const fetchBlockedDates = async () => {
+    if (!token) return;
+    setLoading(prev => ({ ...prev, blockedDates: true }));
+    try {
+      const response = await fetch(`${BASE_URL}/hub/blocked-dates/all/`, {
+        headers: { Authorization: `${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setBlockedDates(data.data || data);
+      }
+    } catch (error) {
+      console.error("Error fetching blocked dates:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch blocked dates",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, blockedDates: false }));
+    }
+  };
+
   // Fetch stats
   const fetchStats = async () => {
     if (!token) return;
@@ -267,6 +303,7 @@ export default function HubManagementPage() {
       }
       if (activeTab === "checkins") fetchCheckIns();
       if (activeTab === "spaces") fetchSpaces();
+      if (activeTab === "blocked-dates") fetchBlockedDates();
     }
   }, [token, activeTab]);
 
@@ -831,6 +868,234 @@ export default function HubManagementPage() {
     setIsSpaceModalOpen(true);
   };
 
+  // Blocked dates handlers
+  const validateBlockedDateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!blockedDateForm.start_date) {
+      errors.start_date = "Start date is required";
+    }
+    if (!blockedDateForm.end_date) {
+      errors.end_date = "End date is required";
+    }
+    if (blockedDateForm.start_date && blockedDateForm.end_date) {
+      const start = new Date(blockedDateForm.start_date);
+      const end = new Date(blockedDateForm.end_date);
+      if (end < start) {
+        errors.end_date = "End date must be after or equal to start date";
+      }
+    }
+    
+    setBlockedDateFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleCreateBlockedDate = async () => {
+    if (!token) return;
+    if (!validateBlockedDateForm()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fix the form errors",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${BASE_URL}/hub/blocked-dates/`, {
+        method: "POST",
+        headers: {
+          Authorization: `${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          start_date: blockedDateForm.start_date,
+          end_date: blockedDateForm.end_date,
+          reason: blockedDateForm.reason || null,
+          is_active: blockedDateForm.is_active,
+        }),
+      });
+      
+      if (response.ok) {
+        await fetchBlockedDates();
+        setIsBlockedDateModalOpen(false);
+        setBlockedDateForm({
+          start_date: "",
+          end_date: "",
+          reason: "",
+          is_active: true,
+        });
+        setBlockedDateFormErrors({});
+        toast({
+          title: "Success",
+          description: "Blocked date range created successfully!",
+        });
+      } else {
+        const error = await response.json();
+        const errorMessage = error.message || "Failed to create blocked date range";
+        const errorData = error.data || {};
+        
+        // Set field-specific errors
+        const fieldErrors: Record<string, string> = {};
+        Object.keys(errorData).forEach((key) => {
+          if (Array.isArray(errorData[key])) {
+            fieldErrors[key] = errorData[key][0];
+          } else {
+            fieldErrors[key] = errorData[key];
+          }
+        });
+        setBlockedDateFormErrors(fieldErrors);
+        
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating blocked date range:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create blocked date range",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateBlockedDate = async () => {
+    if (!token || !selectedBlockedDate) return;
+    if (!validateBlockedDateForm()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fix the form errors",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${BASE_URL}/hub/blocked-dates/${selectedBlockedDate.id}/`, {
+        method: "PUT",
+        headers: {
+          Authorization: `${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          start_date: blockedDateForm.start_date,
+          end_date: blockedDateForm.end_date,
+          reason: blockedDateForm.reason || null,
+          is_active: blockedDateForm.is_active,
+        }),
+      });
+      
+      if (response.ok) {
+        await fetchBlockedDates();
+        setIsBlockedDateModalOpen(false);
+        setSelectedBlockedDate(null);
+        setBlockedDateForm({
+          start_date: "",
+          end_date: "",
+          reason: "",
+          is_active: true,
+        });
+        setBlockedDateFormErrors({});
+        toast({
+          title: "Success",
+          description: "Blocked date range updated successfully!",
+        });
+      } else {
+        const error = await response.json();
+        const errorMessage = error.message || "Failed to update blocked date range";
+        const errorData = error.data || {};
+        
+        // Set field-specific errors
+        const fieldErrors: Record<string, string> = {};
+        Object.keys(errorData).forEach((key) => {
+          if (Array.isArray(errorData[key])) {
+            fieldErrors[key] = errorData[key][0];
+          } else {
+            fieldErrors[key] = errorData[key];
+          }
+        });
+        setBlockedDateFormErrors(fieldErrors);
+        
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating blocked date range:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update blocked date range",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteBlockedDate = async (id: number) => {
+    if (!token) return;
+    setConfirmDialog({
+      open: true,
+      title: "Delete Blocked Date Range",
+      description: "Are you sure you want to delete this blocked date range? This action cannot be undone.",
+      onConfirm: async () => {
+        setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} });
+        try {
+          const response = await fetch(`${BASE_URL}/hub/blocked-dates/${id}/`, {
+            method: "DELETE",
+            headers: { Authorization: `${token}` },
+          });
+          if (response.ok) {
+            await fetchBlockedDates();
+            toast({
+              title: "Success",
+              description: "Blocked date range deleted successfully!",
+            });
+          } else {
+            const error = await response.json();
+            toast({
+              title: "Error",
+              description: error.message || "Failed to delete blocked date range",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error deleting blocked date range:", error);
+          toast({
+            title: "Error",
+            description: "Failed to delete blocked date range",
+            variant: "destructive",
+          });
+        }
+      },
+    });
+  };
+
+  const openBlockedDateModal = (blockedDate?: BlockedDateRange) => {
+    if (blockedDate) {
+      setSelectedBlockedDate(blockedDate);
+      setBlockedDateForm({
+        start_date: blockedDate.start_date,
+        end_date: blockedDate.end_date,
+        reason: blockedDate.reason || "",
+        is_active: blockedDate.is_active,
+      });
+    } else {
+      setSelectedBlockedDate(null);
+      setBlockedDateForm({
+        start_date: "",
+        end_date: "",
+        reason: "",
+        is_active: true,
+      });
+    }
+    setBlockedDateFormErrors({});
+    setIsBlockedDateModalOpen(true);
+  };
+
   return (
     <>
       <Toaster />
@@ -883,10 +1148,11 @@ export default function HubManagementPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="registrations">Registrations</TabsTrigger>
           <TabsTrigger value="checkins">Check-ins</TabsTrigger>
           <TabsTrigger value="spaces">Spaces</TabsTrigger>
+          <TabsTrigger value="blocked-dates">Blocked Dates</TabsTrigger>
         </TabsList>
 
         {/* Registrations Tab */}
@@ -1257,10 +1523,37 @@ export default function HubManagementPage() {
                       )}
                     </CardHeader>
                     <CardContent>
-                      {space.capacity && (
-                        <p className="text-sm text-gray-600 mb-4">Capacity: {space.capacity}</p>
-                      )}
-                      <div className="flex gap-2">
+                      <div className="space-y-3 mb-4">
+                        {space.capacity && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Capacity:</span>
+                            <span className="text-sm font-medium">{space.capacity} people</span>
+                          </div>
+                        )}
+                        {space.created_at && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Created:</span>
+                            <span className="text-sm font-medium">
+                              {new Date(space.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                        {space.updated_at && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Last Updated:</span>
+                            <span className="text-sm font-medium">
+                              {new Date(space.updated_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Status:</span>
+                          <Badge variant={space.is_available ? "default" : "secondary"} className="text-xs">
+                            {space.is_available ? "Available" : "Unavailable"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-2 border-t">
                         <Button
                           variant="outline"
                           className="flex-1"
@@ -1282,6 +1575,108 @@ export default function HubManagementPage() {
                   </Card>
                 ))
               )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Blocked Dates Tab */}
+        <TabsContent value="blocked-dates" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold">Blocked Date Ranges</h2>
+            <Button onClick={() => openBlockedDateModal()} className="flex items-center gap-2">
+              <MdAdd size={20} />
+              New Blocked Date Range
+            </Button>
+          </div>
+
+          {loading.blockedDates ? (
+            <div className="flex justify-center items-center py-12">
+              <FadeLoader color="#3b82f6" />
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>End Date</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {blockedDates.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                          No blocked date ranges found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      blockedDates
+                        .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
+                        .map((blockedDate) => {
+                          const startDate = new Date(blockedDate.start_date);
+                          const endDate = new Date(blockedDate.end_date);
+                          const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                          
+                          return (
+                            <TableRow key={blockedDate.id}>
+                              <TableCell className="font-medium">
+                                {startDate.toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>
+                                {endDate.toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>
+                                {duration} {duration === 1 ? "day" : "days"}
+                              </TableCell>
+                              <TableCell>
+                                {blockedDate.reason || (
+                                  <span className="text-gray-400 italic">No reason provided</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={blockedDate.is_active ? "destructive" : "secondary"}>
+                                  {blockedDate.is_active ? "Active" : "Inactive"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {blockedDate.created_at
+                                  ? new Date(blockedDate.created_at).toLocaleDateString()
+                                  : "N/A"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openBlockedDateModal(blockedDate)}
+                                    title="Edit"
+                                  >
+                                    <MdEdit size={16} />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteBlockedDate(blockedDate.id)}
+                                    className="text-red-600 hover:text-red-700"
+                                    title="Delete"
+                                  >
+                                    <MdDelete size={16} />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </TabsContent>
@@ -1772,6 +2167,138 @@ export default function HubManagementPage() {
               onClick={selectedSpace ? handleUpdateSpace : handleCreateSpace}
             >
               {selectedSpace ? "Update Space" : "Create Space"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Blocked Date Range Modal */}
+      <Dialog 
+        open={isBlockedDateModalOpen} 
+        onOpenChange={(open) => {
+          setIsBlockedDateModalOpen(open);
+          if (!open) {
+            setSelectedBlockedDate(null);
+            setBlockedDateForm({
+              start_date: "",
+              end_date: "",
+              reason: "",
+              is_active: true,
+            });
+            setBlockedDateFormErrors({});
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedBlockedDate ? "Edit Blocked Date Range" : "Create Blocked Date Range"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedBlockedDate
+                ? "Update blocked date range details"
+                : "Block a date range to prevent bookings during this period"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Start Date *</Label>
+                <Input
+                  type="date"
+                  value={blockedDateForm.start_date}
+                  onChange={(e) => {
+                    setBlockedDateForm({ ...blockedDateForm, start_date: e.target.value });
+                    if (blockedDateFormErrors.start_date) {
+                      setBlockedDateFormErrors({ ...blockedDateFormErrors, start_date: "" });
+                    }
+                  }}
+                />
+                {blockedDateFormErrors.start_date && (
+                  <p className="text-sm text-red-600 mt-1">{blockedDateFormErrors.start_date}</p>
+                )}
+              </div>
+              <div>
+                <Label>End Date *</Label>
+                <Input
+                  type="date"
+                  value={blockedDateForm.end_date}
+                  onChange={(e) => {
+                    setBlockedDateForm({ ...blockedDateForm, end_date: e.target.value });
+                    if (blockedDateFormErrors.end_date) {
+                      setBlockedDateFormErrors({ ...blockedDateFormErrors, end_date: "" });
+                    }
+                  }}
+                  min={blockedDateForm.start_date || undefined}
+                />
+                {blockedDateFormErrors.end_date && (
+                  <p className="text-sm text-red-600 mt-1">{blockedDateFormErrors.end_date}</p>
+                )}
+              </div>
+            </div>
+            <div>
+              <Label>Reason (Optional)</Label>
+              <Textarea
+                value={blockedDateForm.reason}
+                onChange={(e) =>
+                  setBlockedDateForm({ ...blockedDateForm, reason: e.target.value })
+                }
+                placeholder="e.g., Holiday season closure, Maintenance, Special event"
+                rows={3}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Provide a reason for blocking these dates (optional but recommended)
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="is_active_blocked"
+                checked={blockedDateForm.is_active}
+                onChange={(e) =>
+                  setBlockedDateForm({ ...blockedDateForm, is_active: e.target.checked })
+                }
+                className="w-4 h-4"
+              />
+              <Label htmlFor="is_active_blocked" className="cursor-pointer">
+                Active (Only active blocks prevent bookings)
+              </Label>
+            </div>
+            {blockedDateForm.start_date && blockedDateForm.end_date && (
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  <strong>Duration:</strong>{" "}
+                  {(() => {
+                    const start = new Date(blockedDateForm.start_date);
+                    const end = new Date(blockedDateForm.end_date);
+                    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                    return `${days} ${days === 1 ? "day" : "days"} will be blocked`;
+                  })()}
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsBlockedDateModalOpen(false);
+                setSelectedBlockedDate(null);
+                setBlockedDateForm({
+                  start_date: "",
+                  end_date: "",
+                  reason: "",
+                  is_active: true,
+                });
+                setBlockedDateFormErrors({});
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={selectedBlockedDate ? handleUpdateBlockedDate : handleCreateBlockedDate}
+            >
+              {selectedBlockedDate ? "Update" : "Create"} Blocked Date Range
             </Button>
           </div>
         </DialogContent>

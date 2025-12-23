@@ -122,6 +122,16 @@ export interface HubSpace {
   updated_at?: string;
 }
 
+export interface BlockedDateRange {
+  id: number;
+  start_date: string; // YYYY-MM-DD
+  end_date: string; // YYYY-MM-DD
+  reason?: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface HubStats {
   // Registration stats
   total_registrations?: number;
