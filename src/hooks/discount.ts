@@ -142,48 +142,114 @@ export const fetchAllDiscountCodesBackground = async (
 
         // Extract pagination info from the response
         const paginationInfo = firstPageData.data?.pagination;
-        const totalPages = paginationInfo?.total_pages || 1;
         
         if (setPagination && paginationInfo) {
             setPagination(paginationInfo);
         }
 
-        // If there's only one page, just set the data
-        if (totalPages === 1) {
-            const discountCodes = firstPageData.data?.results || firstPageData.data || [];
-            setDiscountCodes(discountCodes);
+        // Get initial discount codes from first page
+        const allDiscountCodes: DiscountCode[] = firstPageData.data?.results || firstPageData.data || [];
+        
+        // Check if there are more pages using has_next and next_page
+        if (!paginationInfo?.has_next || paginationInfo.next_page === null) {
+            // Only one page, just set the data
+            setDiscountCodes(allDiscountCodes);
             return;
         }
 
-        // Fetch all pages in parallel
-        const pagePromises = [];
-        for (let page = 1; page <= totalPages; page++) {
-            pagePromises.push(
-                fetch(
-                    `${API_CONFIG.API_URL}/discount/all/?page=${page}&limit=${PAGINATION_CONFIG.DEFAULT_LIMIT}`,
-                    {
-                      method: "GET",
-                      headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `${token}`,
-                      },
+        // Fetch remaining pages sequentially using next_page (more reliable than total_pages)
+        const fetchPageWithRetry = async (page: number, maxRetries = 3): Promise<{ success: boolean; data?: any; nextPage?: number | null }> => {
+            const url = `${API_CONFIG.API_URL}/discount/all/?page=${page}&limit=${PAGINATION_CONFIG.DEFAULT_LIMIT}`;
+            
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(url, {
+                        method: "GET",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `${token}`,
+                        },
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
-                )
-            );
-        }
-
-        const responses = await Promise.all(pagePromises);
-        const allData = await Promise.all(responses.map(res => res.json()));
-
-        // Combine all results
-        let allDiscountCodes: DiscountCode[] = [];
-        allData.forEach(data => {
-            if (data.success && data.data?.results) {
-                allDiscountCodes = [...allDiscountCodes, ...data.data.results];
+                    
+                    const data = await response.json();
+                    if (data.success && data.data?.results) {
+                        return { 
+                            success: true, 
+                            data: data,
+                            nextPage: data.data.pagination?.next_page ?? null
+                        };
+                    } else {
+                        throw new Error("Invalid response structure");
+                    }
+                } catch (error: any) {
+                    if (attempt < maxRetries - 1) {
+                        const delay = 1000 * Math.pow(2, attempt); // Exponential backoff
+                        console.warn(`Retrying page ${page} (attempt ${attempt + 1}/${maxRetries}) after ${delay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        console.error(`Failed to fetch page ${page} after ${maxRetries} attempts:`, error);
+                        return { success: false, nextPage: null };
+                    }
+                }
             }
-        });
+            return { success: false, nextPage: null };
+        };
 
-        setDiscountCodes(allDiscountCodes);
+        // Fetch remaining pages sequentially using next_page
+        let currentPage = paginationInfo.next_page;
+        const failedPages: number[] = [];
+        let consecutiveFailures = 0;
+        const maxConsecutiveFailures = 5;
+        
+        while (currentPage !== null) {
+            const result = await fetchPageWithRetry(currentPage);
+            
+            if (result.success && result.data) {
+                // Reset consecutive failures on success
+                consecutiveFailures = 0;
+                
+                // Add results from this page
+                const pageResults = result.data.data?.results || [];
+                allDiscountCodes.push(...pageResults);
+                
+                // Update state progressively
+                setDiscountCodes([...allDiscountCodes]);
+                
+                // Move to next page
+                currentPage = result.nextPage ?? null;
+            } else {
+                // Page failed after retries
+                failedPages.push(currentPage);
+                consecutiveFailures++;
+                console.warn(`Skipping page ${currentPage} due to repeated failures. Continuing with next page...`);
+                
+                // If we have too many consecutive failures, stop
+                if (consecutiveFailures >= maxConsecutiveFailures) {
+                    console.error(`Stopping pagination after ${maxConsecutiveFailures} consecutive page failures.`);
+                    break;
+                }
+                
+                // Try to continue by incrementing (pages are sequential)
+                currentPage = currentPage + 1;
+                
+                // Safety check: if we've failed too many total pages, stop
+                if (failedPages.length > 20) {
+                    console.error("Too many total page failures. Stopping pagination.");
+                    break;
+                }
+            }
+        }
+        
+        if (failedPages.length > 0) {
+            console.warn(`Some discount code pages failed to load (pages: ${failedPages.join(', ')})`);
+            setError(`Some pages failed to load (pages: ${failedPages.join(', ')}). Data may be incomplete.`);
+        } else {
+            console.log(`Successfully fetched all discount codes from all pages`);
+        }
 
     } catch (error) {
         console.log(error);

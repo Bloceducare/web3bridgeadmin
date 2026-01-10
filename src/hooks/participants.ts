@@ -243,10 +243,13 @@ export const useParticipants = () => {
           const pagination = firstResult.data.pagination;
           let currentPage = pagination.next_page;
           const additionalParticipants: Participant[] = [];
+          const failedPages: number[] = [];
+          const maxRetries = 3;
+          const retryDelay = 1000; // 1 second base delay
           
-          // Fetch remaining pages using the pagination info
-          while (currentPage !== null) {
-            const pageUrl = `${BASE_URL}/cohort/participant/all/?page=${currentPage}&limit=${limit}`;
+          // Helper function to fetch a page with retry logic
+          const fetchPageWithRetry = async (page: number, retryCount = 0): Promise<{ success: boolean; data?: ApiResponse; nextPage?: number | null }> => {
+            const pageUrl = `${BASE_URL}/cohort/participant/all/?page=${page}&limit=${limit}`;
             
             try {
               const pageController = new AbortController();
@@ -264,39 +267,103 @@ export const useParticipants = () => {
               clearTimeout(pageTimeoutId);
 
               if (!pageResponse.ok) {
-                console.warn(`Failed to fetch page ${currentPage}: ${pageResponse.statusText}`);
-                break; // Stop if we hit an error
+                throw new Error(`HTTP ${pageResponse.status}: ${pageResponse.statusText}`);
               }
 
               const pageResult: ApiResponse = await pageResponse.json();
+              
               if (pageResult.success && pageResult.data && pageResult.data.results) {
-                additionalParticipants.push(...pageResult.data.results);
-                
-                // Update state progressively after each page
-                const combined = [...firstResult.data.results, ...additionalParticipants];
-                const sorted = combined.sort((a, b) => {
-                  const dateA = new Date(a.created_at || 0).getTime();
-                  const dateB = new Date(b.created_at || 0).getTime();
-                  return dateB - dateA;
-                });
-                setParticipants(sorted);
-                
-                // Check if there are more pages
-                currentPage = pageResult.data.pagination.next_page;
+                return {
+                  success: true,
+                  data: pageResult,
+                  nextPage: pageResult.data.pagination.next_page,
+                };
               } else {
-                break;
+                throw new Error("Invalid response structure");
               }
             } catch (error: any) {
-              if (error.name === 'AbortError') {
-                console.warn(`Timeout fetching page ${currentPage}`);
+              // Retry logic with exponential backoff
+              if (retryCount < maxRetries) {
+                const delay = retryDelay * Math.pow(2, retryCount); // Exponential backoff
+                console.warn(`Retrying page ${page} (attempt ${retryCount + 1}/${maxRetries}) after ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return fetchPageWithRetry(page, retryCount + 1);
               } else {
-                console.error(`Error fetching page ${currentPage}:`, error);
+                // Max retries reached, log and return failure
+                if (error.name === 'AbortError') {
+                  console.error(`Timeout fetching page ${page} after ${maxRetries} retries`);
+                } else {
+                  console.error(`Failed to fetch page ${page} after ${maxRetries} retries:`, error.message);
+                }
+                return { success: false };
               }
-              break; // Stop on error
+            }
+          };
+          
+          // Fetch remaining pages using the pagination info
+          // Track consecutive failures to avoid infinite loops
+          let consecutiveFailures = 0;
+          const maxConsecutiveFailures = 5;
+          let lastKnownNextPage: number | null = currentPage; // Track last known next page
+          
+          while (currentPage !== null) {
+            const result = await fetchPageWithRetry(currentPage);
+            
+            if (result.success && result.data) {
+              // Reset consecutive failures on success
+              consecutiveFailures = 0;
+              
+              additionalParticipants.push(...result.data.data.results);
+              
+              // Update state progressively after each page
+              const combined = [...firstResult.data.results, ...additionalParticipants];
+              const sorted = combined.sort((a, b) => {
+                const dateA = new Date(a.created_at || 0).getTime();
+                const dateB = new Date(b.created_at || 0).getTime();
+                return dateB - dateA;
+              });
+              setParticipants(sorted);
+              
+              // Use next_page from pagination (will be null when has_next is false)
+              currentPage = result.nextPage ?? null;
+              lastKnownNextPage = currentPage; // Update last known next page
+            } else {
+              // Page failed after retries
+              failedPages.push(currentPage);
+              consecutiveFailures++;
+              console.warn(`Skipping page ${currentPage} due to repeated failures. Continuing with next page...`);
+              
+              // If we have too many consecutive failures, stop to avoid infinite loops
+              if (consecutiveFailures >= maxConsecutiveFailures) {
+                console.error(`Stopping pagination after ${maxConsecutiveFailures} consecutive page failures.`);
+                break;
+              }
+              
+              // Try to continue to next page
+              // Since pages are sequential (1, 2, 3...), we can increment
+              // But we also check if we had a last known next page that's higher
+              if (lastKnownNextPage !== null && lastKnownNextPage > currentPage) {
+                // Use the last known next page if it's ahead
+                currentPage = lastKnownNextPage;
+              } else {
+                // Otherwise, increment sequentially
+                currentPage = currentPage + 1;
+              }
+              
+              // Additional safety: if we've failed too many total pages, stop
+              if (failedPages.length > 20) {
+                console.error("Too many total page failures. Stopping pagination.");
+                break;
+              }
             }
           }
           
-          console.log(`Completed fetching ${additionalParticipants.length} additional participants`);
+          if (failedPages.length > 0) {
+            console.warn(`Completed fetching with ${failedPages.length} failed pages:`, failedPages);
+            setError(`Some pages failed to load (pages: ${failedPages.join(', ')}). Data may be incomplete.`);
+          } else {
+            console.log(`Completed fetching ${additionalParticipants.length} additional participants from all pages`);
+          }
         }
       } catch (error: any) {
         console.error("Error fetching participants:", error);
