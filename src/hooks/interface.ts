@@ -152,3 +152,19 @@ export interface HubStats {
   // Legacy/fallback
   available_spaces?: number;
 }
+
+export interface CheckIn {
+  id: number;
+  registration: number;
+  registration_name: string;
+  registration_email: string;
+  space: number;
+  space_name: string;
+  status: 'checked_in' | 'checked_out'; // Using a union type for better type safety
+  check_in_time: string; // ISO Date string
+  check_out_time: string | null;
+  purpose: string | null;
+  created_at: string; // ISO Date string
+}
+
+export type CheckIns = CheckIn[];
