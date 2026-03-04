@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { HubRegistration, HubCheckIn, HubSpace, HubStats, BlockedDateRange } from "@/hooks/interface";
+import { HubRegistration, HubCheckIn, HubSpace, HubStats, BlockedDateRange, CheckIn } from "@/hooks/interface";
 import {
   Table,
   TableHeader,
@@ -36,7 +36,11 @@ import { FadeLoader, ClipLoader } from "react-spinners";
 import TablePagination from "@/app/Web3Lagos/Participants/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/Components/ui/toaster";
+import { useHub } from "@/hooks/hub";
+import { useCheckInStore } from "@/stores/useCheckIns";
+import { useHubRegistrationStore } from "@/stores/useHubRegistration";
 
+export type RegistrationStatus = "all" | "pending" | "approved" | "rejected" | "checked_out" | "check_in";
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://testy-leonanie-web3bridge-3c7204a2.koyeb.app/api/v2";
 
 export default function HubManagementPage() {
@@ -46,9 +50,7 @@ export default function HubManagementPage() {
   const [loading, setLoading] = useState({ registrations: false, checkins: false, spaces: false, stats: false, checkInSubmit: false, blockedDates: false });
   
   // Registrations state
-  const [registrations, setRegistrations] = useState<HubRegistration[]>([]);
-  const [allRegistrations, setAllRegistrations] = useState<HubRegistration[]>([]); // Store all for counts
-  const [registrationStatusFilter, setRegistrationStatusFilter] = useState<string>("pending"); // Default to pending
+  const [registrationStatusFilter, setRegistrationStatusFilter] = useState<RegistrationStatus>("pending"); // Default to pending
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [isRegistrationViewModalOpen, setIsRegistrationViewModalOpen] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState<HubRegistration | null>(null);
@@ -65,10 +67,20 @@ export default function HubManagementPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const { getAllCheckIns, fetchRegistrations } = useHub()
+  const checkInTotal = useCheckInStore((state) => state.checkIns)
+  const registrations = useHubRegistrationStore((state) => state.buckets)
+  const counts = {
+  pending: registrations.pending.length,
+  approved: registrations.approved.length,
+  rejected: registrations.rejected.length,
+  checked_out: registrations.checked_out.length,
+  check_in: registrations.check_in.length,
+  all: registrations.all.length,
+};
+const currentList = registrations[registrationStatusFilter] || [];
+  const currentlyCheckedIn = checkInTotal.filter((checkIn) => checkIn.status === "checked_in");
 
-  // Check-ins state
-  const [checkIns, setCheckIns] = useState<HubCheckIn[]>([]);
-  const [activeCheckIns, setActiveCheckIns] = useState<HubCheckIn[]>([]);
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
   const [checkInForm, setCheckInForm] = useState({
     registration: "",
@@ -121,59 +133,19 @@ export default function HubManagementPage() {
     if (storedToken) setToken(storedToken);
   }, []);
 
-  // Fetch registrations by status
-  const fetchRegistrations = async (status?: string) => {
-    if (!token) return;
-    setLoading(prev => ({ ...prev, registrations: true }));
-    try {
-      const statusToFetch = status || registrationStatusFilter;
-      let url = `${BASE_URL}/hub/registration/all/`;
-      
-      // If status is specified and not "all", use the by_status endpoint
-      if (statusToFetch && statusToFetch !== "all") {
-        url = `${BASE_URL}/hub/registration/by_status/?status=${statusToFetch}`;
-      }
-      
-      const response = await fetch(url, {
-        headers: { Authorization: `${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const fetchedRegistrations = data.data || data;
-        setRegistrations(fetchedRegistrations);
-      }
-    } catch (error) {
-      console.error("Error fetching registrations:", error);
-    } finally {
-      setLoading(prev => ({ ...prev, registrations: false }));
-    }
-  };
-
-  // Fetch check-ins
-  const fetchCheckIns = async () => {
-    if (!token) return;
+const fetchCheckIns = async (isSilent = false) => {
+  if (!token) return;
+  if (!isSilent) {
     setLoading(prev => ({ ...prev, checkins: true }));
-    try {
-      const response = await fetch(`${BASE_URL}/hub/checkin/all/`, {
-        headers: { Authorization: `${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const allCheckIns = data.data || data;
-        setCheckIns(allCheckIns);
-        // Filter active check-ins based on status field
-        const active = allCheckIns.filter((checkIn: HubCheckIn) => 
-          checkIn.status === "checked_in"
-        );
-        setActiveCheckIns(active);
-      }
-    } catch (error) {
-      console.error("Error fetching check-ins:", error);
-    } finally {
-      setLoading(prev => ({ ...prev, checkins: false }));
-    }
-  };
+  }
+  try {
+    await getAllCheckIns(token);
+  } catch (error) {
+    console.error("Error fetching check-ins:", error);
+  } finally {
+    setLoading(prev => ({ ...prev, checkins: false }));
+  }
+};
 
   // Fetch spaces
   const fetchSpaces = async () => {
@@ -276,46 +248,30 @@ export default function HubManagementPage() {
     }
   };
 
-  // Fetch all registrations for counts
-  const fetchAllRegistrationsForCounts = async () => {
-    if (!token) return;
-    try {
-      const response = await fetch(`${BASE_URL}/hub/registration/all/`, {
-        headers: { Authorization: `${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setAllRegistrations(data.data || data);
-      }
-    } catch (error) {
-      console.error("Error fetching all registrations:", error);
-    }
-  };
-
   useEffect(() => {
     if (token) {
       fetchStats();
       if (activeTab === "registrations") {
-        // Fetch all for counts, then fetch filtered
-        fetchAllRegistrationsForCounts();
-        fetchRegistrations(registrationStatusFilter);
+        fetchRegistrations(token);
+        fetchRegistrations( token, registrationStatusFilter);
         setCurrentPage(1); // Reset pagination when switching to registrations tab
       }
-      if (activeTab === "checkins") fetchCheckIns();
-      if (activeTab === "spaces") fetchSpaces();
+    if (activeTab === "checkins") {
+        const hasData = checkInTotal && checkInTotal.length > 0;
+        fetchCheckIns(hasData); 
+      }    
+    if (activeTab === "spaces") fetchSpaces();
       if (activeTab === "blocked-dates") fetchBlockedDates();
     }
   }, [token, activeTab]);
 
-  // Fetch when status filter changes
   useEffect(() => {
     if (token && activeTab === "registrations") {
-      fetchRegistrations(registrationStatusFilter);
+      fetchRegistrations(token, registrationStatusFilter);
       setCurrentPage(1);
     }
   }, [registrationStatusFilter]);
 
-  // Registration handlers
   const handleCreateRegistration = async () => {
     if (!token) return;
     try {
@@ -328,8 +284,8 @@ export default function HubManagementPage() {
         body: JSON.stringify(registrationForm),
       });
       if (response.ok) {
-        await fetchAllRegistrationsForCounts();
-        await fetchRegistrations(registrationStatusFilter);
+        await  fetchRegistrations(token);
+        await fetchRegistrations(token, registrationStatusFilter);
         await fetchStats();
         setIsRegistrationModalOpen(false);
         setRegistrationForm({
@@ -375,8 +331,8 @@ export default function HubManagementPage() {
         body: JSON.stringify(registrationForm),
       });
       if (response.ok) {
-        await fetchAllRegistrationsForCounts();
-        await fetchRegistrations(registrationStatusFilter);
+        await  fetchRegistrations(token);
+        await fetchRegistrations(token, registrationStatusFilter);
         setIsRegistrationModalOpen(false);
         setSelectedRegistration(null);
         toast({
@@ -415,8 +371,8 @@ export default function HubManagementPage() {
             headers: { Authorization: `${token}` },
           });
           if (response.ok) {
-            await fetchAllRegistrationsForCounts();
-            await fetchRegistrations(registrationStatusFilter);
+            await  fetchRegistrations(token);
+            await fetchRegistrations(token, registrationStatusFilter);
             await fetchStats();
             toast({
               title: "Success",
@@ -450,7 +406,7 @@ export default function HubManagementPage() {
       description: "Are you sure you want to reject this registration?",
       onConfirm: async () => {
         setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} });
-        const registration = registrations.find(r => r.id === id);
+        const registration = registrations[registrationStatusFilter]?.find((r: any) => r.id === id);
         if (!registration) return;
         
         try {
@@ -471,8 +427,8 @@ export default function HubManagementPage() {
             }),
           });
           if (response.ok) {
-            await fetchAllRegistrationsForCounts();
-            await fetchRegistrations(registrationStatusFilter);
+            await  fetchRegistrations(token);
+            await fetchRegistrations(token,registrationStatusFilter);
             await fetchStats();
             toast({
               title: "Success",
@@ -512,7 +468,7 @@ export default function HubManagementPage() {
             headers: { Authorization: `${token}` },
           });
           if (response.ok) {
-            await fetchAllRegistrationsForCounts();
+            await  fetchRegistrations(token);
             await fetchRegistrations(registrationStatusFilter);
             await fetchStats();
             toast({
@@ -533,7 +489,7 @@ export default function HubManagementPage() {
   };
 
   // Check-in handlers
-  const handleCheckIn = async () => {
+  const handleCheckIn = async (registrationId?: number) => {
     if (!token) return;
     setLoading(prev => ({ ...prev, checkInSubmit: true }));
     try {
@@ -544,7 +500,7 @@ export default function HubManagementPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          registration: parseInt(checkInForm.registration),
+          registration: parseInt(checkInForm.registration) || registrationId || 0,
           // Space is optional - backend will auto-assign if not provided
           ...(checkInForm.space && checkInForm.space !== "none" ? { space: parseInt(checkInForm.space) } : {}),
           purpose: checkInForm.purpose || null,
@@ -592,43 +548,6 @@ export default function HubManagementPage() {
           const response = await fetch(`${BASE_URL}/hub/checkin/${checkInId}/check_out/`, {
             method: "POST",
             headers: { Authorization: `${token}` },
-          });
-          if (response.ok) {
-            await fetchCheckIns();
-            await fetchStats();
-            toast({
-              title: "Success",
-              description: "Check-out successful!",
-            });
-          }
-        } catch (error) {
-          console.error("Error checking out:", error);
-          toast({
-            title: "Error",
-            description: "Failed to check out",
-            variant: "destructive",
-          });
-        }
-      },
-    });
-  };
-
-  const handleCheckOutByRegistration = async (registrationId: number) => {
-    if (!token) return;
-    setConfirmDialog({
-      open: true,
-      title: "Check Out Visitor",
-      description: "Are you sure you want to check out this visitor?",
-      onConfirm: async () => {
-        setConfirmDialog({ open: false, title: "", description: "", onConfirm: () => {} });
-        try {
-          const response = await fetch(`${BASE_URL}/hub/checkin/check_out_by_registration/`, {
-            method: "POST",
-            headers: {
-              Authorization: `${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ registration: registrationId }),
           });
           if (response.ok) {
             await fetchCheckIns();
@@ -868,7 +787,6 @@ export default function HubManagementPage() {
     setIsSpaceModalOpen(true);
   };
 
-  // Blocked dates handlers
   const validateBlockedDateForm = (): boolean => {
     const errors: Record<string, string> = {};
     
@@ -919,12 +837,10 @@ export default function HubManagementPage() {
       if (response.ok) {
         await fetchBlockedDates();
         setIsBlockedDateModalOpen(false);
-        setBlockedDateForm({
-          start_date: "",
-          end_date: "",
-          reason: "",
+      setBlockedDateForm((prev) => ({
+          ...prev,  
           is_active: true,
-        });
+          }));
         setBlockedDateFormErrors({});
         toast({
           title: "Success",
@@ -992,12 +908,10 @@ export default function HubManagementPage() {
         await fetchBlockedDates();
         setIsBlockedDateModalOpen(false);
         setSelectedBlockedDate(null);
-        setBlockedDateForm({
-          start_date: "",
-          end_date: "",
-          reason: "",
-          is_active: true,
-        });
+        setBlockedDateForm((prev) => ({
+          ...prev, 
+          is_active: true, 
+        }));
         setBlockedDateFormErrors({});
         toast({
           title: "Success",
@@ -1085,16 +999,27 @@ export default function HubManagementPage() {
       });
     } else {
       setSelectedBlockedDate(null);
-      setBlockedDateForm({
-        start_date: "",
-        end_date: "",
-        reason: "",
-        is_active: true,
-      });
+      setBlockedDateForm((prev) => ({
+          ...prev, 
+          is_active: true, 
+        }));
     }
     setBlockedDateFormErrors({});
     setIsBlockedDateModalOpen(true);
   };
+  const handleFilterChange = (status: RegistrationStatus) => {
+  setRegistrationStatusFilter(status);
+  setCurrentPage(1);
+
+  if (status === "check_in") {
+    fetchCheckIns();
+  }
+};
+const isCheckInView = registrationStatusFilter === "check_in";
+const activeList = isCheckInView ? currentlyCheckedIn : currentList;
+const indexOfLastItem = currentPage * itemsPerPage;
+const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+const currentItems = activeList.slice(indexOfFirstItem, indexOfLastItem);
 
   return (
     <>
@@ -1126,7 +1051,7 @@ export default function HubManagementPage() {
             <CardDescription>Active Check-ins</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.active_check_ins || activeCheckIns.length}</div>
+            <div className="text-2xl font-bold text-green-600">{stats.active_check_ins || currentlyCheckedIn.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -1134,7 +1059,7 @@ export default function HubManagementPage() {
             <CardDescription>Total Check-ins</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total_check_ins || checkIns.length}</div>
+            <div className="text-2xl font-bold">{stats.total_check_ins || checkInTotal.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -1170,58 +1095,25 @@ export default function HubManagementPage() {
             <div className="flex items-center gap-2 mb-4">
               <span className="text-sm font-medium text-gray-700">Filter by Status:</span>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={registrationStatusFilter === "pending" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setRegistrationStatusFilter("pending");
-                  setCurrentPage(1);
-                }}
-              >
-                Pending ({allRegistrations.filter(r => r.status === "pending" || !r.status).length})
-              </Button>
-              <Button
-                variant={registrationStatusFilter === "approved" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setRegistrationStatusFilter("approved");
-                  setCurrentPage(1);
-                }}
-              >
-                Approved ({allRegistrations.filter(r => r.status === "approved").length})
-              </Button>
-              <Button
-                variant={registrationStatusFilter === "rejected" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setRegistrationStatusFilter("rejected");
-                  setCurrentPage(1);
-                }}
-              >
-                Rejected ({allRegistrations.filter(r => r.status === "rejected").length})
-              </Button>
-              <Button
-                variant={registrationStatusFilter === "checked_out" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setRegistrationStatusFilter("checked_out");
-                  setCurrentPage(1);
-                }}
-              >
-                Checked Out ({allRegistrations.filter(r => r.status === "checked_out").length})
-              </Button>
-              <Button
-                variant={registrationStatusFilter === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setRegistrationStatusFilter("all");
-                  setCurrentPage(1);
-                }}
-              >
-                All ({allRegistrations.length})
-              </Button>
-            </div>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "pending", label: "Pending", count: counts.pending },
+            { id: "rejected", label: "Rejected", count: counts.rejected },
+            { id: "check_in", label: "Checked In", count: currentlyCheckedIn.length },
+            { id: "checked_out", label: "Checked Out", count: counts.checked_out },
+            { id: "approved", label: "Approved", count: counts.approved },
+            { id: "all", label: "All", count: counts.all },
+          ].map((filter) => (
+          <Button
+            key={filter.id}
+            variant={registrationStatusFilter === filter.id ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleFilterChange(filter.id as RegistrationStatus)}
+          >
+            {filter.label} ({filter.count})
+          </Button>
+        ))}
+      </div>
           </div>
 
           {loading.registrations ? (
@@ -1244,83 +1136,87 @@ export default function HubManagementPage() {
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody>
-                      {registrations.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                            No registrations found
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        (() => {
-                          const indexOfLastItem = currentPage * itemsPerPage;
-                          const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-                          const currentItems = registrations.slice(indexOfFirstItem, indexOfLastItem);
-                          return currentItems.map((reg) => (
-                        <TableRow key={reg.id}>
-                          <TableCell className="font-medium">{reg.name}</TableCell>
-                          <TableCell>{reg.email}</TableCell>
-                          <TableCell>{reg.phone_number}</TableCell>
-                          <TableCell>{reg.location}</TableCell>
-                          <TableCell>{reg.role}</TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={
-                                reg.status === "approved" 
-                                  ? "default" 
-                                  : reg.status === "rejected"
-                                  ? "destructive"
-                                  : reg.status === "checked_out"
-                                  ? "outline"
-                                  : "secondary"
-                              }
-                            >
-                              {reg.status === "checked_out" ? "Checked Out" : reg.status || "pending"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openRegistrationViewModal(reg)}
-                                title="View Details"
-                              >
-                                <MdVisibility size={16} />
-                              </Button>
-                              {/* Show check-in button for approved registrations */}
-                              {registrationStatusFilter === "approved" && reg.status === "approved" && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setCheckInForm({
-                                      registration: reg.id.toString(),
-                                      space: "",
-                                      purpose: "",
-                                      notes: "",
-                                    });
-                                    setIsCheckInModalOpen(true);
-                                  }}
-                                  title="Check In"
-                                  className="text-green-600 border-green-600 hover:bg-green-50"
-                                >
-                                  Check In
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                          ));
-                        })()
-                      )}
-                    </TableBody>
+                   <TableBody>
+  {activeList.length === 0 ? (
+    <TableRow>
+      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+        No {registrationStatusFilter.replace("_", " ")} found
+      </TableCell>
+    </TableRow>
+  ) : (
+    currentItems.map((item) => {
+      const displayName = isCheckInView ? (item as any).registration_name : (item as HubRegistration).name;
+      const displayEmail = isCheckInView ? (item as any).registration_email : (item as HubRegistration).email;
+      const displayStatus = item.status || "pending";
+      const displayPhoneNumber = !isCheckInView ? (item as HubRegistration).phone_number : "—";
+      const displayLocation = !isCheckInView ? (item as HubRegistration).location : (item as any).space_name;
+      const displayRole = !isCheckInView ? (item as HubRegistration).role : "Checked In";
+
+      function openCheckInDetail(item: HubRegistration | CheckIn): void {
+        throw new Error("Function not implemented.");
+      }
+      return (
+        <TableRow key={item.id}>
+          <TableCell className="font-medium">{displayName}</TableCell>
+          <TableCell>{displayEmail}</TableCell>
+          <TableCell>{displayPhoneNumber}</TableCell>
+          <TableCell>{displayLocation}</TableCell>
+          <TableCell>{displayRole}</TableCell>
+          <TableCell>
+            <Badge 
+              variant={
+                displayStatus === "approved" || displayStatus === "checked_in" 
+                  ? "default" 
+                  : displayStatus === "rejected"
+                  ? "destructive"
+                  : "secondary"
+              }
+            >
+              {displayStatus.replace("_", " ")}
+            </Badge>
+          </TableCell>
+          <TableCell className="text-right">
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => isCheckInView ? openCheckInDetail(item) : openRegistrationViewModal(item as HubRegistration)}
+              >
+                <MdVisibility size={16} />
+              </Button>
+              {registrationStatusFilter === "approved" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCheckIn(item.id)}
+                  className="text-green-600 border-green-600 hover:bg-green-50"
+                >
+                  Check In
+                </Button>
+              )}
+              {isCheckInView && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCheckOut(item.id)} 
+                  className="text-red-600 border-red-600 hover:bg-red-50"
+                >
+                  Check Out
+                </Button>
+              )}
+            </div>
+          </TableCell>
+        </TableRow>
+      );
+    })
+  )}
+</TableBody>
                   </Table>
                 </div>
               </div>
               
               {/* Pagination */}
-              {registrations.length > itemsPerPage && (
+              {currentList.length > itemsPerPage && (
                 <div className="flex justify-between items-center mt-4">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">Items per page:</span>
@@ -1345,7 +1241,7 @@ export default function HubManagementPage() {
                   </div>
                   <TablePagination
                     currentPage={currentPage}
-                    totalPages={Math.ceil(registrations.length / itemsPerPage)}
+                    totalPages={Math.ceil(currentList.length / itemsPerPage)}
                     onPageChange={setCurrentPage}
                   />
                 </div>
@@ -1376,21 +1272,21 @@ export default function HubManagementPage() {
                   <div className="flex justify-center py-8">
                     <ClipLoader color="#3b82f6" size={20} />
                   </div>
-                ) : activeCheckIns.length === 0 ? (
+                ) : checkInTotal.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">No active check-ins</p>
                 ) : (
                   <div className="space-y-2">
-                    {activeCheckIns.map((checkIn) => (
+                    {currentlyCheckedIn.map((checkIn) => (
                       <div
                         key={checkIn.id}
                         className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
                       >
                         <div>
                           <p className="font-medium">
-                            {checkIn.registration_name || checkIn.registration_details?.name || `Registration #${checkIn.registration}`}
+                            {checkIn.registration_name || `Registration #${checkIn.registration}`}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {checkIn.space_name || checkIn.space_details?.name || "No space assigned"}
+                            {checkIn.space_name || "No space assigned"}
                           </p>
                         </div>
                         <Button
@@ -1410,8 +1306,8 @@ export default function HubManagementPage() {
             {/* All Check-ins */}
             <Card>
               <CardHeader>
-                <CardTitle>All Check-ins</CardTitle>
-                <CardDescription>Complete check-in history</CardDescription>
+                <CardTitle>All Check-out</CardTitle>
+                <CardDescription>Complete checkout history</CardDescription>
               </CardHeader>
               <CardContent>
                 {loading.checkins ? (
@@ -1420,67 +1316,82 @@ export default function HubManagementPage() {
                   </div>
                 ) : (
                   <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                    <div className="overflow-x-auto max-h-[400px]">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Visitor</TableHead>
-                            <TableHead>Space</TableHead>
-                            <TableHead>Purpose</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {checkIns.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                                No check-ins found
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            checkIns.slice(0, 10).map((checkIn) => (
-                              <TableRow key={checkIn.id}>
-                                <TableCell>
-                                  {checkIn.registration_name || checkIn.registration_details?.name || `Registration #${checkIn.registration}`}
-                                </TableCell>
-                                <TableCell>
-                                  {checkIn.space_name || checkIn.space_details?.name || "N/A"}
-                                </TableCell>
-                                <TableCell>{checkIn.purpose || "N/A"}</TableCell>
-                                <TableCell>
-                                  <Badge variant={checkIn.status === "checked_in" ? "default" : "secondary"}>
-                                    {checkIn.status === "checked_in" ? "Active" : "Checked Out"}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex gap-2">
-                                    {checkIn.status === "checked_in" && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleCheckOut(checkIn.id)}
-                                      >
-                                        Check Out
-                                      </Button>
-                                    )}
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteCheckIn(checkIn.id)}
-                                      className="text-red-600"
-                                      title="Delete"
-                                    >
-                                      <MdDelete size={16} />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
+            <div className="overflow-x-auto max-h-[600px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Visitor</TableHead>
+                    <TableHead>Space</TableHead>
+                    <TableHead>Check-In Time</TableHead>
+                    <TableHead>Check-Out Time</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const checkedOutItems = checkInTotal.filter(item => item.status === "checked_out");
+                    if (checkedOutItems.length === 0) {
+                      return (
+                        <TableRow>
+                          {/* Updated colSpan to 6 to match the new columns */}
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                            No check-out records found
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                      const formatTime = (dateString: string | null) => {
+                      if (!dateString) return "N/A";
+                      return new Date(dateString).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      });
+                    };
+                    return checkedOutItems
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((checkIn) => (
+                        <TableRow key={checkIn.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span>{checkIn.registration_name || `Reg #${checkIn.registration}`}</span>
+                              <span className="text-[10px] text-gray-400">{checkIn.registration_email}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{checkIn.space_name || "N/A"}</TableCell>
+                          {/* New Time Columns */}
+                          <TableCell className="text-sm text-gray-600">
+                            {formatTime(checkIn.check_in_time)}
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            {formatTime(checkIn.check_out_time)}
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                              Checked Out
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteCheckIn(checkIn.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                title="Delete Record"
+                              >
+                                <MdDelete size={18} />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ));
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
                   </div>
                 )}
               </CardContent>
@@ -1805,12 +1716,10 @@ export default function HubManagementPage() {
                   {selectedRegistration.status === "approved" && (
                     <Button
                       onClick={() => {
-                        setCheckInForm({
-                          registration: selectedRegistration.id.toString(),
-                          space: "",
-                          purpose: "",
-                          notes: "",
-                        });
+                       setCheckInForm((prev) => ({
+                            ...prev,
+                            registration: selectedRegistration.id.toString(),
+                          }));
                         setIsRegistrationViewModalOpen(false);
                         setIsCheckInModalOpen(true);
                       }}
@@ -1866,9 +1775,7 @@ export default function HubManagementPage() {
               {selectedRegistration ? "Edit Registration" : "New Registration"}
             </DialogTitle>
             <DialogDescription>
-              {selectedRegistration
-                ? "Update registration details"
-                : "Create a new hub registration"}
+              {selectedRegistration  ? "Update registration details"  : "Create a new hub registration"}
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
@@ -1968,7 +1875,7 @@ export default function HubManagementPage() {
           setIsCheckInModalOpen(open);
           if (open) {
             // Fetch all registrations (especially approved ones) for check-in
-            if (registrations.length === 0 || allRegistrations.length === 0) {
+            if (currentList.length === 0 || currentList.length === 0) {
               fetchRegistrations("all");
             }
             if (spaces.length === 0) {
@@ -1995,7 +1902,7 @@ export default function HubManagementPage() {
                   <SelectValue placeholder="Select registration" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(allRegistrations.length > 0 ? allRegistrations : registrations)
+                  {(currentList.length > 0 ? currentList : [])
                     .filter((reg) => reg.status === "approved")
                     .map((reg) => (
                       <SelectItem key={reg.id} value={reg.id.toString()}>
@@ -2062,7 +1969,7 @@ export default function HubManagementPage() {
               Cancel
             </Button>
             <Button 
-              onClick={handleCheckIn}
+              onClick={() => handleCheckIn()}
               disabled={loading.checkInSubmit || !checkInForm.registration}
             >
               {loading.checkInSubmit ? (
@@ -2179,12 +2086,10 @@ export default function HubManagementPage() {
           setIsBlockedDateModalOpen(open);
           if (!open) {
             setSelectedBlockedDate(null);
-            setBlockedDateForm({
-              start_date: "",
-              end_date: "",
-              reason: "",
-              is_active: true,
-            });
+           setBlockedDateForm((prev) => ({
+            ...prev, 
+            is_active: true, 
+          }));
             setBlockedDateFormErrors({});
           }
         }}
@@ -2284,12 +2189,10 @@ export default function HubManagementPage() {
               onClick={() => {
                 setIsBlockedDateModalOpen(false);
                 setSelectedBlockedDate(null);
-                setBlockedDateForm({
-                  start_date: "",
-                  end_date: "",
-                  reason: "",
+                setBlockedDateForm((prev) => ({
+                  ...prev,
                   is_active: true,
-                });
+                }));
                 setBlockedDateFormErrors({});
               }}
             >
@@ -2328,4 +2231,3 @@ export default function HubManagementPage() {
     </>
   );
 }
-
