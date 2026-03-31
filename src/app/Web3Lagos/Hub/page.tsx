@@ -31,7 +31,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
-import { MdAdd, MdEdit, MdDelete, MdCheckCircle, MdCancel, MdRefresh, MdVisibility } from "react-icons/md";
+import { MdAdd, MdEdit, MdDelete, MdCheckCircle, MdCancel, MdRefresh, MdVisibility, MdDownload } from "react-icons/md";
+import { Download } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/Components/ui/dropdown-menu";
+import {
+  fetchHubExportBundle,
+  downloadHubCsv,
+  downloadHubSpreadsheet,
+} from "@/lib/hubExport";
 import { FadeLoader, ClipLoader } from "react-spinners";
 import TablePagination from "@/app/Web3Lagos/Participants/pagination";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +62,7 @@ export default function HubManagementPage() {
   const [token, setToken] = useState("");
   const [activeTab, setActiveTab] = useState("registrations");
   const [loading, setLoading] = useState({ registrations: false, checkins: false, spaces: false, stats: false, checkInSubmit: false, blockedDates: false });
+  const [exportingHub, setExportingHub] = useState(false);
   
   // Registrations state
   const [registrationStatusFilter, setRegistrationStatusFilter] = useState<RegistrationStatus>("pending"); // Default to pending
@@ -1015,6 +1030,42 @@ const fetchCheckIns = async (isSilent = false) => {
     fetchCheckIns();
   }
 };
+
+  const handleExportHub = async (format: "csv" | "xlsx") => {
+    if (!token) {
+      toast({
+        title: "Not signed in",
+        description: "Sign in to export hub data.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setExportingHub(true);
+    try {
+      const bundle = await fetchHubExportBundle(token, BASE_URL);
+      if (format === "csv") {
+        downloadHubCsv(bundle);
+      } else {
+        downloadHubSpreadsheet(bundle);
+      }
+      toast({
+        title: "Export ready",
+        description:
+          format === "csv"
+            ? "Your CSV download has started."
+            : "Your Excel workbook download has started.",
+      });
+    } catch (e) {
+      console.error("Hub export failed:", e);
+      toast({
+        title: "Export failed",
+        description: "Could not load hub data. Try refreshing and export again.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingHub(false);
+    }
+  };
 const isCheckInView = registrationStatusFilter === "check_in";
 const activeList = isCheckInView ? currentlyCheckedIn : currentList;
 const indexOfLastItem = currentPage * itemsPerPage;
@@ -1025,15 +1076,57 @@ const currentItems = activeList.slice(indexOfFirstItem, indexOfLastItem);
     <>
       <Toaster />
       <main className="p-6 w-full space-y-6 bg-gray-50 min-h-screen">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Ethereum Hub Management</h1>
           <p className="text-sm text-gray-500 mt-1">Manage registrations, check-ins, and spaces</p>
         </div>
-        <Button onClick={fetchStats} variant="outline" className="flex items-center gap-2">
-          <MdRefresh size={20} />
-          Refresh Stats
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="default"
+                className="flex items-center gap-2"
+                disabled={exportingHub || !token}
+              >
+                {exportingHub ? (
+                  <ClipLoader size={18} color="currentColor" />
+                ) : (
+                  <MdDownload size={20} />
+                )}
+                Export data
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Download structured hub data</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => {
+                  void handleExportHub("csv");
+                }}
+                disabled={exportingHub}
+                className="cursor-pointer gap-2"
+              >
+                <Download className="h-4 w-4 opacity-70" />
+                CSV (all sections)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  void handleExportHub("xlsx");
+                }}
+                disabled={exportingHub}
+                className="cursor-pointer gap-2"
+              >
+                <MdDownload className="h-4 w-4 opacity-70" />
+                Excel workbook (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button onClick={fetchStats} variant="outline" className="flex items-center gap-2">
+            <MdRefresh size={20} />
+            Refresh Stats
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
