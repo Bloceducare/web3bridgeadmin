@@ -28,6 +28,7 @@
     "draft-js": "^0.11.7",
     "draftjs-to-html": "^0.9.1",
     "framer-motion": "^12.0.6",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.469.0",
     "next": "14.2.4",
     "react": "^18.3.1",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@types/draftjs-to-html": "^0.8.4",
+    "@types/jszip": "^3.4.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

@@ -43,8 +43,10 @@ import {
 } from "@/Components/ui/dropdown-menu";
 import {
   fetchHubExportBundle,
-  downloadHubCsv,
+  downloadHubJson,
+  downloadHubCsvZip,
   downloadHubSpreadsheet,
+  hubExportToastMessage,
 } from "@/lib/hubExport";
 import { FadeLoader, ClipLoader } from "react-spinners";
 import TablePagination from "@/app/Web3Lagos/Participants/pagination";
@@ -1031,7 +1033,7 @@ const fetchCheckIns = async (isSilent = false) => {
   }
 };
 
-  const handleExportHub = async (format: "csv" | "xlsx") => {
+  const handleExportHub = async (format: "json" | "zip" | "xlsx") => {
     if (!token) {
       toast({
         title: "Not signed in",
@@ -1043,23 +1045,27 @@ const fetchCheckIns = async (isSilent = false) => {
     setExportingHub(true);
     try {
       const bundle = await fetchHubExportBundle(token, BASE_URL);
-      if (format === "csv") {
-        downloadHubCsv(bundle);
+      if (format === "json") {
+        downloadHubJson(bundle);
+      } else if (format === "zip") {
+        await downloadHubCsvZip(bundle);
       } else {
         downloadHubSpreadsheet(bundle);
       }
       toast({
         title: "Export ready",
         description:
-          format === "csv"
-            ? "Your CSV download has started."
-            : "Your Excel workbook download has started.",
+          format === "json"
+            ? "Your JSON download has started."
+            : format === "zip"
+              ? "Your ZIP (4 CSV files) download has started."
+              : "Your Excel workbook download has started.",
       });
     } catch (e) {
       console.error("Hub export failed:", e);
       toast({
         title: "Export failed",
-        description: "Could not load hub data. Try refreshing and export again.",
+        description: hubExportToastMessage(e),
         variant: "destructive",
       });
     } finally {
@@ -1094,21 +1100,31 @@ const currentItems = activeList.slice(indexOfFirstItem, indexOfLastItem);
                 ) : (
                   <MdDownload size={20} />
                 )}
-                Export data
+                Export hub data
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Download structured hub data</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>Full dataset (one API call)</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={() => {
-                  void handleExportHub("csv");
+                  void handleExportHub("json");
                 }}
                 disabled={exportingHub}
                 className="cursor-pointer gap-2"
               >
                 <Download className="h-4 w-4 opacity-70" />
-                CSV (all sections)
+                JSON (.json)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  void handleExportHub("zip");
+                }}
+                disabled={exportingHub}
+                className="cursor-pointer gap-2"
+              >
+                <Download className="h-4 w-4 opacity-70" />
+                CSV archive (ZIP — 4 tables)
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => {
