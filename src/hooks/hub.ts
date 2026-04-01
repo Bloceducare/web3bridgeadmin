@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useToast } from "./use-toast";
 import { useCheckInStore } from "@/stores/useCheckIns";
 import { useHubRegistrationStore } from "@/stores/useHubRegistration";
+import type { CheckIn } from "./interface";
 
 
 export type RegistrationStatus = "all" | "pending" | "approved" | "rejected" | "checked_out" | "check_in";
@@ -26,9 +27,19 @@ const setBucketData = useHubRegistrationStore((state) => state.setBucketData);
             if (!response.ok) throw new Error("Failed to fetch check-ins");
 
             const data = await response.json();
-            
-            // Accessing data.data based on your JSON structure
-            setCheckIns(data.data || []); 
+            const payload: unknown =
+              data.data !== undefined ? data.data : data;
+            let list: CheckIn[] = [];
+            if (Array.isArray(payload)) {
+              list = payload as CheckIn[];
+            } else if (
+              payload &&
+              typeof payload === "object" &&
+              Array.isArray((payload as { results?: CheckIn[] }).results)
+            ) {
+              list = (payload as { results: CheckIn[] }).results;
+            }
+            setCheckIns(list);
             
         } catch (error) {
             console.error("Error fetching check-ins:", error);

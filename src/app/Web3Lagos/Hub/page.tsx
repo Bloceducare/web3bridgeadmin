@@ -85,7 +85,11 @@ export default function HubManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const { getAllCheckIns, fetchRegistrations } = useHub()
-  const checkInTotal = useCheckInStore((state) => state.checkIns)
+  const checkInsRaw = useCheckInStore((state) => state.checkIns);
+  const checkInsList = useMemo(
+    () => (Array.isArray(checkInsRaw) ? checkInsRaw : []),
+    [checkInsRaw]
+  );
   const registrations = useHubRegistrationStore((state) => state.buckets)
   const counts = {
   pending: registrations.pending.length,
@@ -96,7 +100,7 @@ export default function HubManagementPage() {
   all: registrations.all.length,
 };
 const currentList = registrations[registrationStatusFilter] || [];
-  const currentlyCheckedIn = checkInTotal.filter((checkIn) => checkIn.status === "checked_in");
+  const currentlyCheckedIn = checkInsList.filter((checkIn) => checkIn.status === "checked_in");
 
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
   const [checkInForm, setCheckInForm] = useState({
@@ -274,7 +278,7 @@ const fetchCheckIns = async (isSilent = false) => {
         setCurrentPage(1); // Reset pagination when switching to registrations tab
       }
     if (activeTab === "checkins") {
-        const hasData = checkInTotal && checkInTotal.length > 0;
+        const hasData = checkInsList.length > 0;
         fetchCheckIns(hasData); 
       }    
     if (activeTab === "spaces") fetchSpaces();
@@ -1168,7 +1172,7 @@ const currentItems = activeList.slice(indexOfFirstItem, indexOfLastItem);
             <CardDescription>Total Check-ins</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total_check_ins || checkInTotal.length}</div>
+            <div className="text-2xl font-bold">{stats.total_check_ins || checkInsList.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -1381,7 +1385,7 @@ const currentItems = activeList.slice(indexOfFirstItem, indexOfLastItem);
                   <div className="flex justify-center py-8">
                     <ClipLoader color="#3b82f6" size={20} />
                   </div>
-                ) : checkInTotal.length === 0 ? (
+                ) : checkInsList.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">No active check-ins</p>
                 ) : (
                   <div className="space-y-2">
@@ -1439,7 +1443,7 @@ const currentItems = activeList.slice(indexOfFirstItem, indexOfLastItem);
                 </TableHeader>
                 <TableBody>
                   {(() => {
-                    const checkedOutItems = checkInTotal.filter(item => item.status === "checked_out");
+                    const checkedOutItems = checkInsList.filter(item => item.status === "checked_out");
                     if (checkedOutItems.length === 0) {
                       return (
                         <TableRow>
