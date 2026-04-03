@@ -2,7 +2,21 @@ import { useCallback } from "react";
 import { useToast } from "./use-toast";
 import { useCheckInStore } from "@/stores/useCheckIns";
 import { useHubRegistrationStore } from "@/stores/useHubRegistration";
-import type { CheckIn } from "./interface";
+import type { CheckIn, HubRegistration } from "./interface";
+
+function normalizeListPayload<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) {
+    return payload as T[];
+  }
+  if (
+    payload &&
+    typeof payload === "object" &&
+    Array.isArray((payload as { results?: T[] }).results)
+  ) {
+    return (payload as { results: T[] }).results;
+  }
+  return [];
+}
 
 
 export type RegistrationStatus = "all" | "pending" | "approved" | "rejected" | "checked_out" | "check_in";
@@ -29,17 +43,7 @@ const setBucketData = useHubRegistrationStore((state) => state.setBucketData);
             const data = await response.json();
             const payload: unknown =
               data.data !== undefined ? data.data : data;
-            let list: CheckIn[] = [];
-            if (Array.isArray(payload)) {
-              list = payload as CheckIn[];
-            } else if (
-              payload &&
-              typeof payload === "object" &&
-              Array.isArray((payload as { results?: CheckIn[] }).results)
-            ) {
-              list = (payload as { results: CheckIn[] }).results;
-            }
-            setCheckIns(list);
+            setCheckIns(normalizeListPayload<CheckIn>(payload));
             
         } catch (error) {
             console.error("Error fetching check-ins:", error);
@@ -67,8 +71,10 @@ const setBucketData = useHubRegistrationStore((state) => state.setBucketData);
             if (!response.ok) throw new Error("Failed to fetch registrations");
 
             const data = await response.json();
-            const fetchedData = data.data || data;
-            setBucketData(status ?? "all", fetchedData); // Update the store with fetched registrations
+            const payload: unknown =
+              data.data !== undefined ? data.data : data;
+            const list = normalizeListPayload<HubRegistration>(payload);
+            setBucketData(status ?? "all", list);
             
         } catch (error) {
             console.error("Error fetching registrations:", error);
