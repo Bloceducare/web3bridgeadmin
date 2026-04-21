@@ -202,21 +202,15 @@ export const useParticipants = () => {
         // Fetch the first page with new API structure (page & limit instead of page_size)
         const limit = 100; // Items per page
         const firstUrl = `${BASE_URL}/cohort/participant/all/?page=1&limit=${limit}`;
-        
-        // Add timeout to initial request
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-        
+
+        // No client-side fetch timeout — long responses are bounded by the server / proxy.
         let firstResponse = await fetch(firstUrl, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          signal: controller.signal,
         });
-        
-        clearTimeout(timeoutId);
 
         if (!firstResponse.ok) {
           throw new Error(`API call failed: ${firstResponse.statusText}`);
@@ -252,19 +246,13 @@ export const useParticipants = () => {
             const pageUrl = `${BASE_URL}/cohort/participant/all/?page=${page}&limit=${limit}`;
             
             try {
-              const pageController = new AbortController();
-              const pageTimeoutId = setTimeout(() => pageController.abort(), 30000);
-              
               const pageResponse = await fetch(pageUrl, {
                 method: "GET",
                 headers: {
                   Authorization: `Bearer ${token}`,
                   "Content-Type": "application/json",
                 },
-                signal: pageController.signal,
               });
-              
-              clearTimeout(pageTimeoutId);
 
               if (!pageResponse.ok) {
                 throw new Error(`HTTP ${pageResponse.status}: ${pageResponse.statusText}`);
@@ -368,18 +356,12 @@ export const useParticipants = () => {
       } catch (error: any) {
         console.error("Error fetching participants:", error);
         
-        // Handle timeout specifically
-        if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-          setError("Request timed out. The dataset might be too large. Please try refreshing.");
+        if (error.name === "AbortError") {
+          setError("Request was cancelled.");
+        } else if (error.message?.includes("timeout")) {
+          setError("Request timed out. Please try again.");
         } else {
           setError(error.message || "Failed to fetch participants");
-        }
-        
-        if (!silent) {
-          const errorMessage = error.name === 'AbortError' 
-            ? "Request timed out due to large dataset. Please try again." 
-            : `Failed to fetch participants: ${error.message}`;
-          alert(errorMessage);
         }
       } finally {
         if (!silent) {
